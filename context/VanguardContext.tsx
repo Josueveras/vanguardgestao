@@ -1,13 +1,11 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { 
-    Client, Task, Lead, Campaign, SOPItem, ContentItem, 
-    PerformanceReport 
+import {
+    Client, Task, Lead, Campaign, SOPItem, ContentItem,
+    PerformanceReport
 } from '../types';
-import { 
-    MOCK_CLIENTS, MOCK_TASKS, MOCK_LEADS, MOCK_CAMPAIGNS, 
-    MOCK_SOP, MOCK_CONTENT, MOCK_PERFORMANCE 
-} from '../constants';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './AuthContext';
 
 interface VanguardContextType {
     clients: Client[];
@@ -16,92 +14,158 @@ interface VanguardContextType {
     campaigns: Campaign[];
     sops: SOPItem[];
     content: ContentItem[];
-    performance: PerformanceReport;
-    
+    performance: PerformanceReport | null;
+    loading: boolean;
+
     // UI State
     projectFilter: 'all' | 'high';
     setProjectFilter: (filter: 'all' | 'high') => void;
 
     // Actions
-    addClient: (client: Client) => void;
-    updateClient: (client: Client) => void;
-    
-    addTask: (task: Task) => void;
-    updateTask: (task: Task) => void;
-    deleteTask: (id: string) => void;
+    addClient: (client: Omit<Client, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+    updateClient: (client: Client) => Promise<void>;
 
-    addLead: (lead: Lead) => void;
-    updateLead: (lead: Lead) => void;
-    deleteLead: (id: string) => void;
+    addTask: (task: Omit<Task, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+    updateTask: (task: Task) => Promise<void>;
+    deleteTask: (id: string) => Promise<void>;
 
-    addContent: (item: ContentItem) => void;
-    updateContent: (item: ContentItem) => void;
-    deleteContent: (id: string) => void;
+    addLead: (lead: Omit<Lead, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+    updateLead: (lead: Lead) => Promise<void>;
+    deleteLead: (id: string) => Promise<void>;
 
-    addSOP: (item: SOPItem) => void;
-    updateSOP: (item: SOPItem) => void;
-    deleteSOP: (id: string) => void;
+    addContent: (item: Omit<ContentItem, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+    updateContent: (item: ContentItem) => Promise<void>;
+    deleteContent: (id: string) => Promise<void>;
+
+    addSOP: (item: Omit<SOPItem, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+    updateSOP: (item: SOPItem) => Promise<void>;
+    deleteSOP: (id: string) => Promise<void>;
 }
 
 const VanguardContext = createContext<VanguardContextType | undefined>(undefined);
 
-// Helper to load from LocalStorage or fallback to Mocks
-function loadState<T>(key: string, fallback: T): T {
-    try {
-        const saved = localStorage.getItem(key);
-        return saved ? JSON.parse(saved) : fallback;
-    } catch (e) {
-        console.warn(`Error loading ${key} from localStorage`, e);
-        return fallback;
-    }
-}
-
 export const VanguardProvider = ({ children }: { children: ReactNode }) => {
-    // State Initialization
-    const [clients, setClients] = useState<Client[]>(() => loadState('vg_clients', MOCK_CLIENTS));
-    const [tasks, setTasks] = useState<Task[]>(() => loadState('vg_tasks', MOCK_TASKS));
-    const [leads, setLeads] = useState<Lead[]>(() => loadState('vg_leads', MOCK_LEADS));
-    const [campaigns, setCampaigns] = useState<Campaign[]>(() => loadState('vg_campaigns', MOCK_CAMPAIGNS));
-    const [sops, setSops] = useState<SOPItem[]>(() => loadState('vg_sops', MOCK_SOP));
-    const [content, setContent] = useState<ContentItem[]>(() => loadState('vg_content', MOCK_CONTENT));
-    const [performance, setPerformance] = useState<PerformanceReport>(() => loadState('vg_performance', MOCK_PERFORMANCE));
-
-    // UI State
+    const { user } = useAuth();
+    const [clients, setClients] = useState<Client[]>([]);
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [leads, setLeads] = useState<Lead[]>([]);
+    const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+    const [sops, setSops] = useState<SOPItem[]>([]);
+    const [content, setContent] = useState<ContentItem[]>([]);
+    const [performance, setPerformance] = useState<PerformanceReport | null>(null);
+    const [loading, setLoading] = useState(true);
     const [projectFilter, setProjectFilter] = useState<'all' | 'high'>('all');
 
-    // Persistence Effects
-    useEffect(() => localStorage.setItem('vg_clients', JSON.stringify(clients)), [clients]);
-    useEffect(() => localStorage.setItem('vg_tasks', JSON.stringify(tasks)), [tasks]);
-    useEffect(() => localStorage.setItem('vg_leads', JSON.stringify(leads)), [leads]);
-    useEffect(() => localStorage.setItem('vg_campaigns', JSON.stringify(campaigns)), [campaigns]);
-    useEffect(() => localStorage.setItem('vg_sops', JSON.stringify(sops)), [sops]);
-    useEffect(() => localStorage.setItem('vg_content', JSON.stringify(content)), [content]);
-    useEffect(() => localStorage.setItem('vg_performance', JSON.stringify(performance)), [performance]);
+    const fetchData = async () => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const [
+                { data: clientsData },
+                { data: tasksData },
+                { data: leadsData },
+                { data: campaignsData },
+                { data: sopsData },
+                { data: contentData },
+                { data: perfData }
+            ] = await Promise.all([
+                supabase.from('clients').select('*').order('created_at', { ascending: false }),
+                supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+                supabase.from('leads').select('*').order('created_at', { ascending: false }),
+                supabase.from('campaigns').select('*').order('created_at', { ascending: false }),
+                supabase.from('sop_documents').select('*').order('created_at', { ascending: false }),
+                supabase.from('content_posts').select('*').order('created_at', { ascending: false }),
+                supabase.from('performance_metrics').select('*').single()
+            ]);
+
+            setClients(clientsData || []);
+            setTasks(tasksData || []);
+            setLeads(leadsData || []);
+            setCampaigns(campaignsData || []);
+            setSops(sopsData || []);
+            setContent(contentData || []);
+            setPerformance(perfData || null);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, [user]);
 
     // Actions
-    const addClient = (c: Client) => setClients(prev => [...prev, c]);
-    const updateClient = (c: Client) => setClients(prev => prev.map(item => item.id === c.id ? c : item));
+    const addClient = async (c: Omit<Client, 'id' | 'user_id' | 'created_at'>) => {
+        const { data, error } = await supabase.from('clients').insert([{ ...c, user_id: user?.id }]).select();
+        if (!error && data) setClients(prev => [data[0], ...prev]);
+    };
+    const updateClient = async (c: Client) => {
+        const { error } = await supabase.from('clients').update(c).eq('id', c.id);
+        if (!error) setClients(prev => prev.map(item => item.id === c.id ? c : item));
+    };
 
-    const addTask = (t: Task) => setTasks(prev => [...prev, t]);
-    const updateTask = (t: Task) => setTasks(prev => prev.map(item => item.id === t.id ? t : item));
-    const deleteTask = (id: string) => setTasks(prev => prev.filter(item => item.id !== id));
+    const addTask = async (t: Omit<Task, 'id' | 'user_id' | 'created_at'>) => {
+        const { data, error } = await supabase.from('tasks').insert([{ ...t, user_id: user?.id }]).select();
+        if (!error && data) setTasks(prev => [data[0], ...prev]);
+    };
+    const updateTask = async (t: Task) => {
+        const { error } = await supabase.from('tasks').update(t).eq('id', t.id);
+        if (!error) setTasks(prev => prev.map(item => item.id === t.id ? t : item));
+    };
+    const deleteTask = async (id: string) => {
+        const { error } = await supabase.from('tasks').delete().eq('id', id);
+        if (!error) setTasks(prev => prev.filter(item => item.id !== id));
+    };
 
-    const addLead = (l: Lead) => setLeads(prev => [...prev, l]);
-    const updateLead = (l: Lead) => setLeads(prev => prev.map(item => item.id === l.id ? l : item));
-    const deleteLead = (id: string) => setLeads(prev => prev.filter(item => item.id !== id));
+    const addLead = async (l: Omit<Lead, 'id' | 'user_id' | 'created_at'>) => {
+        const { data, error } = await supabase.from('leads').insert([{ ...l, user_id: user?.id }]).select();
+        if (!error && data) setLeads(prev => [data[0], ...prev]);
+    };
+    const updateLead = async (l: Lead) => {
+        const { error } = await supabase.from('leads').update(l).eq('id', l.id);
+        if (!error) setLeads(prev => prev.map(item => item.id === l.id ? l : item));
+    };
+    const deleteLead = async (id: string) => {
+        const { error } = await supabase.from('leads').delete().eq('id', id);
+        if (!error) setLeads(prev => prev.filter(item => item.id !== id));
+    };
 
-    const addContent = (c: ContentItem) => setContent(prev => [...prev, c]);
-    const updateContent = (c: ContentItem) => setContent(prev => prev.map(item => item.id === c.id ? c : item));
-    const deleteContent = (id: string) => setContent(prev => prev.filter(item => item.id !== id));
+    const addContent = async (c: Omit<ContentItem, 'id' | 'user_id' | 'created_at'>) => {
+        const { data, error } = await supabase.from('content_posts').insert([{ ...c, user_id: user?.id }]).select();
+        if (!error && data) setContent(prev => [data[0], ...prev]);
+    };
+    const updateContent = async (c: ContentItem) => {
+        const { error } = await supabase.from('content_posts').update(c).eq('id', c.id);
+        if (!error) setContent(prev => prev.map(item => item.id === c.id ? c : item));
+    };
+    const deleteContent = async (id: string) => {
+        const { error } = await supabase.from('content_posts').delete().eq('id', id);
+        if (!error) setContent(prev => prev.filter(item => item.id !== id));
+    };
 
-    const addSOP = (s: SOPItem) => setSops(prev => [...prev, s]);
-    const updateSOP = (s: SOPItem) => setSops(prev => prev.map(item => item.id === s.id ? s : item));
-    const deleteSOP = (id: string) => setSops(prev => prev.filter(item => item.id !== id));
+    const addSOP = async (s: Omit<SOPItem, 'id' | 'user_id' | 'created_at'>) => {
+        const { data, error } = await supabase.from('sop_documents').insert([{ ...s, user_id: user?.id }]).select();
+        if (!error && data) setSops(prev => [data[0], ...prev]);
+    };
+    const updateSOP = async (s: SOPItem) => {
+        const { error } = await supabase.from('sop_documents').update(s).eq('id', s.id);
+        if (!error) setSops(prev => prev.map(item => item.id === s.id ? s : item));
+    };
+    const deleteSOP = async (id: string) => {
+        const { error } = await supabase.from('sop_documents').delete().eq('id', id);
+        if (!error) setSops(prev => prev.filter(item => item.id !== id));
+    };
 
     return (
         <VanguardContext.Provider value={{
             clients, tasks, leads, campaigns, sops, content, performance,
-            projectFilter, setProjectFilter,
+            loading, projectFilter, setProjectFilter,
             addClient, updateClient,
             addTask, updateTask, deleteTask,
             addLead, updateLead, deleteLead,
