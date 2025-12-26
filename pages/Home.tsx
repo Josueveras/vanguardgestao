@@ -1,0 +1,434 @@
+
+import React, { useState, useMemo } from 'react';
+import {
+  ChartLineUp,
+  Rocket,
+  VideoCamera,
+  TrendUp,
+  TrendDown,
+  ArrowUpRight,
+  CheckCircle,
+  Clock,
+  Plus,
+  CaretDown,
+  Note,
+  UserPlus,
+  CheckSquare,
+  Funnel,
+  Target
+} from '@phosphor-icons/react';
+import { Card, Button, Modal, Toast } from '../components/ui';
+import { ViewState, Task, Lead, Client, SOPItem } from '../types';
+import { useVanguard } from '../context/VanguardContext';
+
+import { useNavigate } from 'react-router-dom';
+
+export const HomeModule = () => {
+  const navigate = useNavigate();
+
+  const { clients, tasks, leads, setProjectFilter, addTask, addLead, addClient, addSOP } = useVanguard();
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<'task' | 'lead' | 'client' | 'note' | null>(null);
+  const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
+
+  // Quick Action States
+  const [quickTask, setQuickTask] = useState<Partial<Task>>({ title: '', priority: 'medium', project: '' });
+  const [quickLead, setQuickLead] = useState<Partial<Lead>>({ company: '', value: 0 });
+  const [quickClient, setQuickClient] = useState<Partial<Client>>({ name: '', mrr: 0 });
+  const [quickNote, setQuickNote] = useState({ title: '', content: '' });
+
+  // 1. Minhas Prioridades (Filtradas e Ordenadas)
+  const priorities = useMemo(() => {
+    return tasks
+      .filter(t => t.priority === 'high' && t.status !== 'done')
+      .sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1)) // Ordena por data (mais urgente primeiro)
+      .slice(0, 5);
+  }, [tasks]);
+
+  // 2. Agenda de Hoje (Tarefas de Hoje + Compromissos)
+  const agenda = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayTasks = tasks.filter(t => t.dueDate === today && t.status !== 'done');
+
+    const mockMeetings = [
+      { id: 'm1', time: '14:00', title: 'Reunião: TechSolutions', type: 'Google Meet', isTask: false },
+      { id: 'm2', time: '16:00', title: 'Reunião: Construtora Elite', type: 'Google Meet', isTask: false },
+    ];
+
+    const taskItems = todayTasks.map(t => ({
+      id: t.id,
+      time: 'Até as 18h',
+      title: `Entrega: ${t.title}`,
+      type: 'Tarefa / Prazo',
+      isTask: true
+    }));
+
+    return [...mockMeetings, ...taskItems];
+  }, [tasks]);
+
+  // 3. Atividade Recente (Dinâmica)
+  const recentActivity = useMemo(() => {
+    const recentTasks = [...tasks].reverse().slice(0, 3).map(t => ({
+      id: t.id,
+      type: 'task',
+      title: t.title,
+      meta: t.status === 'done' ? 'Concluída' : 'Nova Tarefa',
+      user: t.assignee || 'Admin',
+      color: 'blue'
+    }));
+
+    const recentLeads = [...leads].reverse().slice(0, 2).map(l => ({
+      id: l.id,
+      type: 'lead',
+      title: `Novo Lead: ${l.company}`,
+      meta: l.stage,
+      user: 'Sistema',
+      color: 'green'
+    }));
+
+    // Intercalar apenas para visualização
+    return [...recentTasks, ...recentLeads].sort(() => Math.random() - 0.5).slice(0, 5);
+  }, [tasks, leads]);
+
+  // Handlers para Ações Rápidas
+  const handleSaveQuickTask = () => {
+    if (!quickTask.title) return;
+    addTask({
+      ...quickTask,
+      id: `t-${Date.now()}`,
+      status: 'todo',
+      assignee: 'Admin',
+      dueDate: new Date().toISOString().split('T')[0],
+      tag: 'marketing'
+    } as Task);
+    setToast({ msg: 'Tarefa criada com sucesso!', type: 'success' });
+    setActiveModal(null);
+    setQuickTask({ title: '', priority: 'medium', project: '' });
+  };
+
+  const handleSaveQuickLead = () => {
+    if (!quickLead.company) return;
+    addLead({
+      ...quickLead,
+      id: `l-${Date.now()}`,
+      name: 'Novo Contato',
+      stage: 'prospect',
+      origin: 'Hub Rápido',
+      lastContact: 'Agora'
+    } as Lead);
+    setToast({ msg: 'Lead adicionado ao pipeline!', type: 'success' });
+    setActiveModal(null);
+    setQuickLead({ company: '', value: 0 });
+  };
+
+  const handleSaveQuickClient = () => {
+    if (!quickClient.name) return;
+    addClient({
+      ...quickClient,
+      id: `c-${Date.now()}`,
+      logo: quickClient.name.substring(0, 2).toUpperCase(),
+      status: 'onboarding',
+      healthScore: 100,
+      lastInteraction: 'Agora',
+      plan: 'Growth',
+      links: [],
+      strategy: {}
+    } as Client);
+    setToast({ msg: 'Cliente cadastrado!', type: 'success' });
+    setActiveModal(null);
+    setQuickClient({ name: '', mrr: 0 });
+  };
+
+  const handleSaveQuickNote = () => {
+    if (!quickNote.title) return;
+    addSOP({
+      id: `note-${Date.now()}`,
+      title: `Nota: ${quickNote.title}`,
+      content: quickNote.content,
+      category: 'Geral',
+      lastUpdated: 'Agora'
+    } as SOPItem);
+    setToast({ msg: 'Nota salva em SOP > Geral', type: 'success' });
+    setActiveModal(null);
+    setQuickNote({ title: '', content: '' });
+  };
+
+  const handleDailyMeet = () => {
+    window.open('https://meet.google.com/new', '_blank');
+  };
+
+  // Funções de Navegação
+  const handleViewPriorities = () => {
+    setProjectFilter('high');
+    navigate('/projects');
+  };
+
+  const handleViewAllProjects = () => {
+    setProjectFilter('all');
+    navigate('/projects');
+  };
+
+  // KPIs Calculados - Memoized
+  const kpis = useMemo(() => {
+    const totalMRR = clients.reduce((acc, client) => client.status === 'active' ? acc + client.mrr : acc, 0);
+    const activeProjects = clients.filter(c => c.status === 'active' || c.status === 'onboarding').length;
+    const pipelineLeads = leads.filter(l => l.stage !== 'fechado').length;
+    const pendingTasksCount = tasks.filter(t => t.status !== 'done').length;
+
+    return [
+      { label: 'MRR ATIVO', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalMRR), change: '+12%', trend: 'up' as const, icon: ChartLineUp, target: 'CLIENTS' as const },
+      { label: 'PROJETOS ATIVOS', value: activeProjects.toString(), change: '+2', trend: 'up' as const, icon: Rocket, target: 'PROJECTS' as const },
+      { label: 'LEADS NO PIPELINE', value: pipelineLeads.toString(), change: '+8%', trend: 'up' as const, icon: ArrowUpRight, target: 'CRM' as const },
+      { label: 'TAREFAS PENDENTES', value: pendingTasksCount.toString(), change: '-1%', trend: 'down' as const, icon: CheckCircle, target: 'PROJECTS' as const },
+    ];
+  }, [clients, leads, tasks]);
+
+  return (
+    <div className="space-y-8 relative">
+      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+
+      {/* --- MODAIS DE AÇÃO RÁPIDA --- */}
+
+      {/* Modal Nova Tarefa */}
+      <Modal isOpen={activeModal === 'task'} onClose={() => setActiveModal(null)} title="Nova Tarefa Rápida" size="sm">
+        <div className="p-6 space-y-4">
+          <input className="w-full border p-2 rounded text-sm" placeholder="O que precisa ser feito?" value={quickTask.title} onChange={e => setQuickTask({ ...quickTask, title: e.target.value })} autoFocus />
+          <select className="w-full border p-2 rounded text-sm bg-white" value={quickTask.priority} onChange={e => setQuickTask({ ...quickTask, priority: e.target.value as any })}>
+            <option value="medium">Prioridade Média</option>
+            <option value="high">Alta Prioridade</option>
+            <option value="low">Baixa Prioridade</option>
+          </select>
+          <select className="w-full border p-2 rounded text-sm bg-white" value={quickTask.project} onChange={e => setQuickTask({ ...quickTask, project: e.target.value })}>
+            <option value="">Vincular a Cliente (Opcional)</option>
+            {clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          </select>
+          <Button onClick={handleSaveQuickTask} className="w-full">Criar Tarefa</Button>
+        </div>
+      </Modal>
+
+      {/* Modal Novo Lead */}
+      <Modal isOpen={activeModal === 'lead'} onClose={() => setActiveModal(null)} title="Adicionar Lead ao Pipeline" size="sm">
+        <div className="p-6 space-y-4">
+          <input className="w-full border p-2 rounded text-sm" placeholder="Nome da Empresa" value={quickLead.company} onChange={e => setQuickLead({ ...quickLead, company: e.target.value })} autoFocus />
+          <input type="number" className="w-full border p-2 rounded text-sm" placeholder="Valor Estimado (R$)" value={quickLead.value || ''} onChange={e => setQuickLead({ ...quickLead, value: Number(e.target.value) })} />
+          <Button onClick={handleSaveQuickLead} className="w-full">Adicionar Lead</Button>
+        </div>
+      </Modal>
+
+      {/* Modal Novo Cliente */}
+      <Modal isOpen={activeModal === 'client'} onClose={() => setActiveModal(null)} title="Cadastrar Novo Cliente" size="sm">
+        <div className="p-6 space-y-4">
+          <input className="w-full border p-2 rounded text-sm" placeholder="Nome do Cliente" value={quickClient.name} onChange={e => setQuickClient({ ...quickClient, name: e.target.value })} autoFocus />
+          <input type="number" className="w-full border p-2 rounded text-sm" placeholder="MRR Contratado (R$)" value={quickClient.mrr || ''} onChange={e => setQuickClient({ ...quickClient, mrr: Number(e.target.value) })} />
+          <Button onClick={handleSaveQuickClient} className="w-full">Cadastrar Cliente</Button>
+        </div>
+      </Modal>
+
+      {/* Modal Nova Nota */}
+      <Modal isOpen={activeModal === 'note'} onClose={() => setActiveModal(null)} title="Nova Nota Rápida" size="md">
+        <div className="p-6 space-y-4">
+          <input className="w-full border p-2 rounded text-sm font-bold" placeholder="Título da Nota" value={quickNote.title} onChange={e => setQuickNote({ ...quickNote, title: e.target.value })} autoFocus />
+          <textarea className="w-full border p-2 rounded text-sm h-32 resize-none" placeholder="Digite sua anotação..." value={quickNote.content} onChange={e => setQuickNote({ ...quickNote, content: e.target.value })} />
+          <Button onClick={handleSaveQuickNote} className="w-full">Salvar Nota</Button>
+        </div>
+      </Modal>
+
+      {/* --- DASHBOARD HEADER --- */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-vblack">Boa noite, Admin</h1>
+          <p className="text-gray-500 mt-1">
+            Resumo: Você tem <span className="font-bold text-vred">{priorities.length} tarefas prioritárias</span> exigindo atenção.
+          </p>
+        </div>
+        <div className="flex gap-3 relative">
+          <Button onClick={handleDailyMeet} variant="secondary" className="gap-2 text-vblack border-gray-200 font-semibold shadow-sm hover:shadow">
+            <VideoCamera size={18} className="text-vred" weight="fill" />
+            Daily Meet
+          </Button>
+
+          {/* BOTÃO DE AÇÃO RÁPIDA (DROPDOWN) */}
+          <div className="relative">
+            <Button className="gap-2 font-semibold shadow-lg shadow-gray-900/20 pr-3" onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}>
+              <Plus size={16} weight="bold" /> Adicionar <CaretDown size={12} weight="bold" className={`transition-transform ${isActionMenuOpen ? 'rotate-180' : ''}`} />
+            </Button>
+
+            {isActionMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-30 animate-in fade-in slide-in-from-top-2">
+                <button onClick={() => { setActiveModal('task'); setIsActionMenuOpen(false); }} className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-vblack flex items-center gap-2">
+                  <CheckSquare size={16} className="text-blue-500" /> Nova Tarefa
+                </button>
+                <button onClick={() => { setActiveModal('lead'); setIsActionMenuOpen(false); }} className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-vblack flex items-center gap-2">
+                  <Target size={16} className="text-orange-500" /> Novo Lead
+                </button>
+                <button onClick={() => { setActiveModal('client'); setIsActionMenuOpen(false); }} className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-vblack flex items-center gap-2">
+                  <UserPlus size={16} className="text-green-500" /> Novo Cliente
+                </button>
+                <div className="h-px bg-gray-100 my-1"></div>
+                <button onClick={() => { setActiveModal('note'); setIsActionMenuOpen(false); }} className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-vblack flex items-center gap-2">
+                  <Note size={16} className="text-gray-400" /> Nova Nota
+                </button>
+              </div>
+            )}
+            {/* Overlay to close dropdown */}
+            {isActionMenuOpen && <div className="fixed inset-0 z-20" onClick={() => setIsActionMenuOpen(false)}></div>}
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {kpis.map((kpi, index) => (
+          <Card
+            key={index}
+            className="p-5 flex flex-col justify-between h-32 hover:border-gray-300 transition-all hover:shadow-md cursor-pointer group select-none"
+            onClick={() => {
+              if (kpi.target === 'PROJECTS') setProjectFilter('all');
+              navigate(kpi.target === 'HOME' ? '/' : `/${kpi.target.toLowerCase()}`);
+            }}
+          >
+            <div className="flex items-center gap-2 text-gray-500 text-xs font-bold uppercase tracking-wider group-hover:text-vblack transition-colors">
+              <kpi.icon size={16} />
+              {kpi.label}
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-vblack tracking-tight">{kpi.value}</div>
+              <div className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-xs font-bold ${kpi.trend === 'up'
+                  ? 'bg-green-50 text-green-700'
+                  : 'bg-red-50 text-red-700'
+                }`}>
+                {kpi.trend === 'up' ? <TrendUp weight="bold" /> : <TrendDown weight="bold" />}
+                {kpi.change}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column (2/3) */}
+        <div className="lg:col-span-2 space-y-8">
+
+          {/* Minhas Prioridades */}
+          <Card title="Minhas Prioridades" action={<button onClick={handleViewPriorities} className="text-xs font-bold text-gray-500 hover:text-vblack uppercase flex items-center gap-1"><Funnel /> Filtrar Projetos</button>}>
+            <div className="space-y-4">
+              {priorities.length > 0 ? priorities.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between group p-2 -mx-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer select-none"
+                  onClick={handleViewPriorities}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-2 h-2 rounded-full bg-vred animate-pulse"></div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-vblack">{item.title}</h4>
+                        <span className="text-[10px] bg-red-50 text-vred px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Alta Prioridade</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">{item.project || 'Geral'}</span>
+                        <span className={`text-xs ${item.dueDate < new Date().toISOString().split('T')[0] ? 'text-red-600 font-bold' : 'text-gray-400'}`}>
+                          {item.dueDate < new Date().toISOString().split('T')[0] ? 'Atrasado: ' : 'Prazo: '}{item.dueDate}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowUpRight size={18} className="text-gray-300 group-hover:text-vblack transition-colors" />
+                </div>
+              )) : (
+                <div className="text-center py-8 text-gray-400">
+                  <CheckCircle size={32} className="mx-auto mb-2 opacity-50 text-green-500" />
+                  <p className="font-medium text-gray-600">Tudo sob controle!</p>
+                  <p className="text-xs">Nenhuma tarefa urgente pendente.</p>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Atividade Recente */}
+          <div className="bg-transparent pt-4">
+            <div className="flex items-center gap-2 mb-6">
+              <Clock size={20} className="text-gray-400" />
+              <h3 className="text-lg font-bold text-vblack">Atividade Recente</h3>
+            </div>
+            <div className="relative pl-2 space-y-8 border-l border-gray-200 ml-2">
+              {recentActivity.map((act, idx) => (
+                <div
+                  key={idx}
+                  className="relative pl-6 cursor-pointer hover:opacity-80 transition-opacity select-none"
+                  onClick={() => {
+                    if (act.type === 'task') {
+                      handleViewAllProjects();
+                    } else {
+                      navigate('/crm');
+                    }
+                  }}
+                >
+                  <div className={`absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white ${act.color === 'blue' ? 'bg-blue-500' : 'bg-green-500'}`}></div>
+                  <p className="text-sm font-medium text-vblack">{act.title}</p>
+                  <p className="text-xs text-gray-400 mt-1">{act.meta} • {act.user}</p>
+                </div>
+              ))}
+              {recentActivity.length === 0 && (
+                <p className="pl-6 text-sm text-gray-400 italic">Nenhuma atividade recente registrada.</p>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right Column (1/3) */}
+        <div className="space-y-8">
+
+          {/* Agenda de Hoje */}
+          <Card title="Agenda de Hoje" className="h-fit">
+            <div className="space-y-6 relative">
+              <div className="absolute left-[3px] top-2 bottom-2 w-0.5 bg-gray-100 rounded-full"></div>
+              {agenda.length > 0 ? agenda.map((item, idx) => (
+                <div
+                  key={idx}
+                  className={`relative pl-6 ${item.isTask ? 'cursor-pointer hover:bg-gray-50/50 rounded-r-lg transition-colors py-1 -my-1 select-none' : ''}`}
+                  onClick={() => item.isTask && handleViewAllProjects()}
+                >
+                  <div className={`absolute left-0 top-1.5 w-2 h-2 rounded-full ${item.isTask ? 'bg-blue-400' : 'bg-vred'}`}></div>
+                  <p className={`text-xs font-bold mb-0.5 ${item.isTask ? 'text-blue-500' : 'text-vred'}`}>{item.time}</p>
+                  <h5 className="text-sm font-bold text-vblack leading-tight">{item.title}</h5>
+                  <div className="flex items-center gap-1.5 mt-1 text-gray-500 text-xs">
+                    {item.isTask ? <CheckSquare size={12} weight="fill" /> : <VideoCamera size={12} weight="fill" />}
+                    {item.type}
+                  </div>
+                </div>
+              )) : (
+                <div className="text-center py-4 text-gray-400 text-xs">Livre hoje.</div>
+              )}
+            </div>
+          </Card>
+
+          {/* Atenção Necessária */}
+          {priorities.length > 0 && (
+            <div
+              className="bg-orange-50 rounded-xl p-6 border border-orange-100 cursor-pointer hover:bg-orange-100/50 transition-colors select-none"
+              onClick={handleViewPriorities}
+            >
+              <div className="flex items-start gap-3 mb-3">
+                <div className="bg-orange-100 p-2 rounded-lg text-orange-600">
+                  <Clock size={20} weight="fill" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-orange-900">Atenção Necessária</h4>
+                  <p className="text-sm text-orange-800/80 mt-1 leading-relaxed">
+                    Você tem <strong className="text-orange-900">{priorities.length} entregas prioritárias</strong>. Foque nas tarefas listadas acima.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+};
