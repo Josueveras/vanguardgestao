@@ -340,7 +340,18 @@ export const CRMModule: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard title="Receita Confirmada" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(stats.closedValue)} subtext={`${stats.closedLeads} contratos fechados`} icon={CheckCircle} color="green" />
         <MetricCard title="Pipeline Total" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(stats.totalPipeline - stats.closedValue)} subtext="Forecast ponderado" icon={ChartBar} color="blue" />
-        <MetricCard title="Ticket Médio" value="R$ 12.500" subtext="+5% vs mês anterior" icon={CurrencyDollar} color="orange" />
+        {/* Métrica Dinâmica de Ticket Médio */}
+        <MetricCard
+          title="Ticket Médio"
+          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+            leads.length > 0
+              ? leads.reduce((acc, lead) => acc + (Number(lead.value) || 0), 0) / leads.length
+              : 0
+          )}
+          subtext="Calculado via Pipeline"
+          icon={CurrencyDollar}
+          color="orange"
+        />
         <MetricCard title="Conversão" value={`${stats.conversionRate}%`} subtext="Lead p/ Cliente" icon={Target} color="purple" />
       </div>
 

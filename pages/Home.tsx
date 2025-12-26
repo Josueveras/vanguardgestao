@@ -15,7 +15,10 @@ import {
   UserPlus,
   CheckSquare,
   Funnel,
-  Target
+  Target,
+  Users,
+  Kanban,
+  Files
 } from '@phosphor-icons/react';
 import { Card, Button, Modal, Toast } from '../components/ui';
 import { Task, Lead, Client, SOPItem } from '../types';
@@ -27,7 +30,7 @@ export const HomeModule = () => {
   const navigate = useNavigate();
 
   const {
-    clients, tasks, leads, setProjectFilter,
+    clients, tasks, leads, sops, setProjectFilter,
     addTask, addLead, addClient, addSOP, loading
   } = useVanguard();
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
@@ -200,18 +203,18 @@ export const HomeModule = () => {
 
   // KPIs Calculados - Memoized
   const kpis = useMemo(() => {
-    const totalMRR = clients.reduce((acc, client) => client.status === 'active' ? acc + client.mrr : acc, 0);
-    const activeProjects = clients.filter(c => c.status === 'active' || c.status === 'onboarding').length;
-    const pipelineLeads = leads.filter(l => l.stage !== 'fechado').length;
-    const pendingTasksCount = tasks.filter(t => t.status !== 'done').length;
+    const totalMRR = clients.reduce((acc, client) => acc + (Number(client.mrr) || 0), 0);
+    const totalLeads = leads.length;
+    const activeProjects = tasks.filter(t => t.status === 'doing').length;
+    const pendingSOPs = sops.length; // Just a count for now
 
     return [
-      { label: 'MRR ATIVO', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalMRR), change: '+12%', trend: 'up' as const, icon: ChartLineUp, target: 'CLIENTS' as const },
-      { label: 'PROJETOS ATIVOS', value: activeProjects.toString(), change: '+2', trend: 'up' as const, icon: Rocket, target: 'PROJECTS' as const },
-      { label: 'LEADS NO PIPELINE', value: pipelineLeads.toString(), change: '+8%', trend: 'up' as const, icon: ArrowUpRight, target: 'CRM' as const },
-      { label: 'TAREFAS PENDENTES', value: pendingTasksCount.toString(), change: '-1%', trend: 'down' as const, icon: CheckCircle, target: 'PROJECTS' as const },
+      { label: 'MRR ATIVO', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalMRR), change: '0%', trend: 'neutral' as const, icon: ChartLineUp, target: 'CLIENTS' as const },
+      { label: 'LEADS NO PIPELINE', value: totalLeads.toString(), change: '0%', trend: 'neutral' as const, icon: Users, target: 'CRM' as const },
+      { label: 'PROJETOS ATIVOS', value: activeProjects.toString(), change: '0%', trend: 'neutral' as const, icon: Kanban, target: 'PROJECTS' as const },
+      { label: 'PROCESSOS (SOPs)', value: pendingSOPs.toString(), change: '0%', trend: 'neutral' as const, icon: Files, target: 'SOP' as const },
     ];
-  }, [clients, leads, tasks]);
+  }, [clients, leads, tasks, sops]); // Added sops to dependencies
 
   return (
     <div className="space-y-8 relative">
