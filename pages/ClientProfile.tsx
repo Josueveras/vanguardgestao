@@ -123,9 +123,17 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
     const [isEditingSnapshot, setIsEditingSnapshot] = useState(false);
     const [snapshotData, setSnapshotData] = useState<ClientSalesSnapshot>(client.salesSnapshot || { funnelStage: '', bottleneck: '', conversionRate: 0, lastReviewDate: '' });
 
-    // Checklist State
     const [checklist, setChecklist] = useState<ChecklistItem[]>(client.onboardingChecklist || []);
     const [newItemText, setNewItemText] = useState('');
+
+    // Metrics Edit State
+    const [isEditingMetrics, setIsEditingMetrics] = useState(false);
+    const [metricsData, setMetricsData] = useState({
+        revenue: client.clientRevenue || 0,
+        roas: client.clientRoas || 0,
+        leads: client.clientLeads || 0
+    });
+
 
     // --- Derived Data ---
     const clientTasks = useMemo(() => tasks.filter(t => t.project === client.name), [tasks, client.name]);
@@ -156,6 +164,18 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
 
         setIsEditingSnapshot(false);
         setToast({ msg: 'Snapshot de vendas salvo!', type: 'success' });
+    };
+
+    const handleSaveMetrics = () => {
+        const updatedClient = {
+            ...client,
+            clientRevenue: metricsData.revenue,
+            clientRoas: metricsData.roas,
+            clientLeads: metricsData.leads
+        };
+        onUpdateClient(updatedClient);
+        setIsEditingMetrics(false);
+        setToast({ msg: 'Métricas atualizadas!', type: 'success' });
     };
 
     const handleAddLink = () => {
@@ -303,11 +323,61 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                         {/* KPIs */}
                         <div className="lg:col-span-2 space-y-8">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                <KPICard label="Receita (Mês)" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(client.mrr)} icon={CurrencyDollar} bgClass="bg-green-50" colorClass="text-green-600" />
-                                <KPICard label="ROAS (Mês)" value="0.0x" icon={TrendUp} bgClass="bg-purple-50" colorClass="text-purple-600" />
-                                <KPICard label="Leads" value="0" icon={Users} bgClass="bg-blue-50" colorClass="text-blue-600" />
+                                <KPICard label="Receita (Mês)" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(client.clientRevenue || 0)} icon={CurrencyDollar} bgClass="bg-green-50" colorClass="text-green-600" />
+                                <KPICard label="ROAS (Mês)" value={`${client.clientRoas || 0}x`} icon={TrendUp} bgClass="bg-purple-50" colorClass="text-purple-600" />
+                                <KPICard label="Leads" value={(client.clientLeads || 0).toString()} icon={Users} bgClass="bg-blue-50" colorClass="text-blue-600" />
                                 <KPICard label="Tasks Abertas" value={clientTasks.filter(t => t.status !== 'done').length} icon={CheckCircle} bgClass="bg-orange-50" colorClass="text-orange-600" />
                             </div>
+
+                            {/* Metrics Edit Section (Conditional) */}
+                            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><ChartLineUp size={20} className="text-blue-500" /> Métricas de Performance</h3>
+                                    {isEditingMetrics ? (
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setIsEditingMetrics(false)} className="text-xs text-gray-500 font-bold hover:underline">Cancelar</button>
+                                            <button onClick={handleSaveMetrics} className="text-xs text-green-600 font-bold hover:underline">Salvar</button>
+                                        </div>
+                                    ) : (
+                                        <button onClick={() => setIsEditingMetrics(true)} className="text-xs text-vblack/50 font-bold hover:text-vblack flex items-center gap-1 transition-colors">
+                                            <PencilSimple size={14} /> Editar Próxima
+                                        </button>
+                                    )}
+                                </div>
+
+                                {isEditingMetrics ? (
+                                    <div className="grid grid-cols-3 gap-6">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 block">Receita</label>
+                                            <input type="number" className="w-full border border-gray-200 rounded p-2 text-sm" value={metricsData.revenue} onChange={e => setMetricsData({ ...metricsData, revenue: +e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 block">ROAS</label>
+                                            <input type="number" className="w-full border border-gray-200 rounded p-2 text-sm" step="0.1" value={metricsData.roas} onChange={e => setMetricsData({ ...metricsData, roas: +e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 block">Leads</label>
+                                            <input type="number" className="w-full border border-gray-200 rounded p-2 text-sm" value={metricsData.leads} onChange={e => setMetricsData({ ...metricsData, leads: +e.target.value })} />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-3 gap-6">
+                                        <div>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Última Receita</p>
+                                            <p className="text-xl font-bold">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(client.clientRevenue || 0)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Último ROAS</p>
+                                            <p className="text-xl font-bold">{client.clientRoas || 0}x</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Leads</p>
+                                            <p className="text-xl font-bold">{client.clientLeads || 0}</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
 
                             {/* Sales Snapshot (Editable) */}
                             <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl p-8 text-white shadow-xl relative overflow-hidden group">

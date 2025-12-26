@@ -2,12 +2,19 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Task } from '../types';
 import {
-    Fire, SquaresFour, X,
     Plus,
     ChartBar, CalendarBlank,
     CheckCircle,
     Stack,
     Eye,
+    Clock,
+    Play,
+    Pause,
+    Trash,
+    ListChecks,
+    Fire,
+    SquaresFour,
+    X
 } from '@phosphor-icons/react';
 import { Modal, MetricCard } from '../components/ui';
 import { useVanguard } from '../context/VanguardContext';
@@ -65,6 +72,50 @@ export const ProjectsModule = () => {
     const [viewMode, setViewMode] = useState<'board' | 'gantt' | 'calendar'>('board');
     const [filterClient, setFilterClient] = useState('all');
     const [isSaving, setIsSaving] = useState(false);
+
+    const SectionTitle = ({ icon: Icon, color, title }: any) => (
+        <div className="flex items-center gap-2 mb-4 mt-6 first:mt-0 pb-2 border-b border-gray-100">
+            <Icon size={18} className={color} weight="duotone" />
+            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">{title}</h4>
+        </div>
+    );
+
+
+    // Timer state
+    const [activeTimerId, setActiveTimerId] = useState<string | null>(null);
+    const [timerStart, setTimerStart] = useState<number | null>(null);
+    const [elapsedThisSession, setElapsedThisSession] = useState(0);
+
+    const formatTime = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const handleToggleTimer = (taskId: string) => {
+        if (activeTimerId === taskId) {
+            // Stop timer
+            const totalElapsed = elapsedThisSession + Math.floor((Date.now() - (timerStart || 0)) / 1000);
+            const taskToUpdate = tasks.find(t => t.id === taskId);
+            if (taskToUpdate) {
+                updateTask({ ...taskToUpdate, timeSpent: (taskToUpdate.timeSpent || 0) + totalElapsed });
+            }
+            setActiveTimerId(null);
+            setTimerStart(null);
+            setElapsedThisSession(0);
+        } else {
+            // Start timer
+            if (activeTimerId) {
+                // Stop previous first
+                handleToggleTimer(activeTimerId);
+            }
+            setActiveTimerId(taskId);
+            setTimerStart(Date.now());
+            setElapsedThisSession(0);
+        }
+    };
+
 
     const stats = useMemo(() => ({
         activeTasks: tasks.filter(t => t.status === 'todo' || t.status === 'doing').length,
@@ -131,9 +182,75 @@ export const ProjectsModule = () => {
     return (
         <div className="space-y-6 h-[calc(100vh-140px)] flex flex-col">
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingTask.id ? "Editar Tarefa" : "Nova Tarefa"} size="md">
-                <div className="p-6 space-y-4">
-                    <div><label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Título</label><input className="w-full border border-gray-200 p-2.5 rounded-lg mt-1 text-sm font-semibold outline-none focus:ring-2 focus:ring-vred/10 transition-all" value={editingTask.title || ''} onChange={e => setEditingTask({ ...editingTask, title: e.target.value })} placeholder="O que precisa ser feito?" /></div>
+                <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar">
+                    <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1">
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Título</label>
+                            <input className="w-full border border-gray-200 p-2.5 rounded-lg mt-1 text-sm font-semibold outline-none focus:ring-2 focus:ring-vred/10 transition-all font-inter" value={editingTask.title || ''} onChange={e => setEditingTask({ ...editingTask, title: e.target.value })} placeholder="O que precisa ser feito?" />
+                        </div>
+                        {editingTask.id && (
+                            <div className="flex flex-col items-end">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Timer</label>
+                                <button
+                                    onClick={() => handleToggleTimer(editingTask.id!)}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${activeTimerId === editingTask.id ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-vblack hover:bg-gray-200'}`}
+                                >
+                                    {activeTimerId === editingTask.id ? <Pause size={16} weight="bold" /> : <Play size={16} weight="bold" />}
+                                    {formatTime((editingTask.timeSpent || 0) + (activeTimerId === editingTask.id ? Math.floor((Date.now() - (timerStart || 0)) / 1000) : 0))}
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <div><label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Descrição</label><textarea className="w-full border border-gray-200 p-2.5 rounded-lg mt-1 text-sm h-24 resize-none outline-none focus:ring-2 focus:ring-vred/10 transition-all" value={editingTask.description || ''} onChange={e => setEditingTask({ ...editingTask, description: e.target.value })} placeholder="Detalhes da tarefa..." /></div>
+
+                    {/* Checklist Section */}
+                    <div>
+                        <SectionTitle icon={ListChecks} color="text-green-500" title="Checklist" />
+                        <div className="space-y-2 mt-2">
+                            {(editingTask.checklist || []).map((item, idx) => (
+                                <div key={item.id} className="flex items-center gap-2 group">
+                                    <input
+                                        type="checkbox"
+                                        checked={item.completed}
+                                        onChange={() => {
+                                            const newList = [...(editingTask.checklist || [])];
+                                            newList[idx].completed = !newList[idx].completed;
+                                            setEditingTask({ ...editingTask, checklist: newList });
+                                        }}
+                                        className="w-4 h-4 rounded border-gray-300 text-vblack focus:ring-vblack"
+                                    />
+                                    <input
+                                        className={`flex-1 text-sm bg-transparent outline-none ${item.completed ? 'line-through text-gray-400' : 'text-vblack'}`}
+                                        value={item.label}
+                                        onChange={(e) => {
+                                            const newList = [...(editingTask.checklist || [])];
+                                            newList[idx].label = e.target.value;
+                                            setEditingTask({ ...editingTask, checklist: newList });
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            const newList = (editingTask.checklist || []).filter((_, i) => i !== idx);
+                                            setEditingTask({ ...editingTask, checklist: newList });
+                                        }}
+                                        className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <Trash size={14} />
+                                    </button>
+                                </div>
+                            ))}
+                            <button
+                                onClick={() => {
+                                    const newItem = { id: `cl-${Date.now()}`, label: '', completed: false };
+                                    setEditingTask({ ...editingTask, checklist: [...(editingTask.checklist || []), newItem] });
+                                }}
+                                className="text-xs font-bold text-vred hover:underline mt-2 flex items-center gap-1"
+                            >
+                                <Plus size={14} weight="bold" /> Adicionar item
+                            </button>
+                        </div>
+                    </div>
+
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>

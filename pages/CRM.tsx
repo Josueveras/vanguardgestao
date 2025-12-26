@@ -34,15 +34,15 @@ const LeadCard: React.FC<{ lead: Lead; onClick: (l: Lead) => void }> = React.mem
   return (
     <div onClick={() => onClick(lead)} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer group relative select-none">
       {lead.leadScore !== undefined && (
-        <div className={`absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded ${lead.leadScore > 70 ? 'bg-green-100 text-green-700' : lead.leadScore > 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
+        <div className={`absolute top-2 right-2 text-[8px] font-bold px-1.5 py-0.5 rounded ${lead.leadScore > 70 ? 'bg-green-100 text-green-700' : lead.leadScore > 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
           {lead.leadScore}
         </div>
       )}
 
-      <div className="flex justify-between items-start mb-1 pr-6">
-        <h4 className="font-bold text-vblack text-sm truncate">{lead.company}</h4>
+      <div className="flex justify-between items-start mb-0.5 pr-6">
+        <h4 className="font-bold text-vblack text-xs truncate leading-tight">{lead.company}</h4>
       </div>
-      <div className="font-bold text-vblack text-sm mb-3">
+      <div className="font-bold text-vblack text-xs mb-2">
         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(lead.value)}
       </div>
 
@@ -101,7 +101,8 @@ const LeadFormModal: React.FC<{
   onClose: () => void;
   lead: Partial<Lead>;
   onSave: (lead: Lead) => Promise<void>;
-}> = ({ isOpen, onClose, lead, onSave }) => {
+  onDelete?: (id: string) => Promise<void>;
+}> = ({ isOpen, onClose, lead, onSave, onDelete }) => {
   if (!isOpen) return null;
 
   const [activeTab, setActiveTab] = useState<'data' | 'timeline' | 'notes'>('data');
@@ -143,10 +144,36 @@ const LeadFormModal: React.FC<{
           author: 'Você',
           description: 'Lead criado manualmente'
         });
+      } else {
+        // Log edit if anything changed (simple check)
+        const changedFields = [];
+        if (formData.company !== lead.company) changedFields.push('Empresa');
+        if (formData.name !== lead.name) changedFields.push('Nome');
+        if (formData.value !== lead.value) changedFields.push('Valor');
+        if (formData.segment !== lead.segment) changedFields.push('Segmento');
+        if (formData.website !== lead.website) changedFields.push('Website');
+
+        if (changedFields.length > 0) {
+          updatedLead.timeline?.push({
+            id: `t-${Date.now()}`,
+            type: 'update',
+            date: new Date().toISOString(),
+            author: 'Você',
+            description: `Campos alterados: ${changedFields.join(', ')}`
+          });
+        }
       }
       await onSave(updatedLead);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!lead.id || !onDelete) return;
+    if (window.confirm('Tem certeza que deseja excluir este lead?')) {
+      await onDelete(lead.id);
+      onClose();
     }
   };
 
@@ -204,6 +231,8 @@ const LeadFormModal: React.FC<{
                 <div><label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Empresa</label><input className={baseInputClass} value={formData.company || ''} onChange={e => setFormData({ ...formData, company: e.target.value })} autoFocus /></div>
                 <div><label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Nome</label><input className={baseInputClass} value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} /></div>
                 <div><label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Valor (R$)</label><input type="number" className={baseInputClass} value={formData.value || ''} onChange={e => setFormData({ ...formData, value: Number(e.target.value) })} /></div>
+                <div><label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Segmento</label><input className={baseInputClass} value={formData.segment || ''} onChange={e => setFormData({ ...formData, segment: e.target.value })} /></div>
+                <div><label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Website</label><input className={baseInputClass} value={formData.website || ''} onChange={e => setFormData({ ...formData, website: e.target.value })} /></div>
                 <div>
                   <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Origem</label>
                   <select className={baseInputClass} value={formData.origin || ''} onChange={e => setFormData({ ...formData, origin: e.target.value })}>
@@ -228,7 +257,7 @@ const LeadFormModal: React.FC<{
                   <div key={item.id} className="relative">
                     <div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-blue-500 border-2 border-white"></div>
                     <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                      <p className="text-sm text-gray-600">{item.description}</p>
+                      <p className="text-xs text-gray-600 leading-relaxed">{item.description}</p>
                     </div>
                   </div>
                 ))}
@@ -241,12 +270,19 @@ const LeadFormModal: React.FC<{
             </div>
           )}
         </div>
-        <div className="p-5 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-          <button onClick={onClose} className="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:bg-white border border-transparent hover:border-gray-200 transition-all">Cancelar</button>
-          <button onClick={handleSave} disabled={isSaving} className="px-6 py-2.5 rounded-lg text-sm font-bold text-white bg-vblack hover:bg-gray-800 transition-all flex items-center gap-2 shadow-lg">
-            {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Check size={18} weight="bold" />}
-            {isSaving ? 'Salvando...' : 'Salvar'}
-          </button>
+        <div className="p-5 border-t border-gray-200 bg-gray-50 flex justify-between gap-3">
+          {formData.id && onDelete ? (
+            <button onClick={handleDelete} className="text-red-500 hover:text-red-700 text-sm font-bold flex items-center gap-1">
+              <X size={16} weight="bold" /> Excluir Lead
+            </button>
+          ) : <div></div>}
+          <div className="flex gap-3">
+            <button onClick={onClose} className="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:bg-white border border-transparent hover:border-gray-200 transition-all">Cancelar</button>
+            <button onClick={handleSave} disabled={isSaving} className="px-6 py-2.5 rounded-lg text-sm font-bold text-white bg-vblack hover:bg-gray-800 transition-all flex items-center gap-2 shadow-lg">
+              {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Check size={18} weight="bold" />}
+              {isSaving ? 'Salvando...' : 'Salvar'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -254,7 +290,7 @@ const LeadFormModal: React.FC<{
 };
 
 export const CRMModule: React.FC = () => {
-  const { leads, addLead, updateLead, loading } = useVanguard();
+  const { leads, addLead, updateLead, deleteLead, loading } = useVanguard();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Partial<Lead>>({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -320,7 +356,13 @@ export const CRMModule: React.FC = () => {
     <div className="h-[calc(100vh-140px)] flex flex-col space-y-8">
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
-      <LeadFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} lead={editingLead} onSave={handleSaveLead} />
+      <LeadFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        lead={editingLead}
+        onSave={handleSaveLead}
+        onDelete={deleteLead}
+      />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>

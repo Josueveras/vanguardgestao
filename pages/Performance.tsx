@@ -36,13 +36,13 @@ const generateClientData = (client: Client): PerformanceReport => {
   return {
     clientId: client.id,
     month: 'Outubro 2023',
-    investment: 0,
-    revenue: 0,
-    leads: 0,
+    investment: (client.clientRevenue || 0) / (client.clientRoas || 1), // Inverse calculation for mock
+    revenue: client.clientRevenue || 0,
+    leads: client.clientLeads || 0,
     sales: 0,
     roi: 0,
-    roas: 0,
-    cpl: 0,
+    roas: client.clientRoas || 0,
+    cpl: client.clientLeads ? ((client.clientRevenue || 0) / (client.clientRoas || 1)) / client.clientLeads : 0,
     cac: 0,
     insights: {
       bestCampaign: '-',
@@ -52,10 +52,10 @@ const generateClientData = (client: Client): PerformanceReport => {
       recommendations: []
     },
     history: [
-      { month: 'Jul', revenue: 0, investment: 0 },
-      { month: 'Ago', revenue: 0, investment: 0 },
-      { month: 'Set', revenue: 0, investment: 0 },
-      { month: 'Out', revenue: 0, investment: 0 },
+      { month: 'Jul', revenue: (client.clientRevenue || 0) * 0.7, investment: (client.clientRevenue || 0) * 0.7 / (client.clientRoas || 1) },
+      { month: 'Ago', revenue: (client.clientRevenue || 0) * 0.8, investment: (client.clientRevenue || 0) * 0.8 / (client.clientRoas || 1) },
+      { month: 'Set', revenue: (client.clientRevenue || 0) * 0.9, investment: (client.clientRevenue || 0) * 0.9 / (client.clientRoas || 1) },
+      { month: 'Out', revenue: client.clientRevenue || 0, investment: (client.clientRevenue || 0) / (client.clientRoas || 1) },
     ]
   };
 };

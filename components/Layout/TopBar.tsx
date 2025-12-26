@@ -57,7 +57,9 @@ export const TopBar: React.FC = () => {
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-30 animate-in fade-in slide-in-from-top-2">
                 <div className="px-4 py-3 border-b border-gray-100">
                   <p className="text-xs text-gray-500 mb-1">Conectado como</p>
-                  <p className="text-sm font-semibold text-vblack truncate">{user?.email}</p>
+                  <p className="text-sm font-semibold text-vblack truncate">
+                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário'}
+                  </p>
                 </div>
                 <button
                   onClick={handleLogout}

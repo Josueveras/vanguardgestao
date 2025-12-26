@@ -90,13 +90,18 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
                 strategy: c.strategy || {},
                 links: c.links || [],
                 salesSnapshot: c.sales_snapshot || {},
-                onboardingChecklist: c.onboarding_checklist || []
+                onboardingChecklist: c.onboarding_checklist || [],
+                clientRevenue: c.client_revenue_monthly || 0,
+                clientRoas: c.client_roas_monthly || 0,
+                clientLeads: c.client_leads_monthly || 0
             }));
 
             const mappedTasks = (tasksData || []).map(t => ({
                 ...t,
                 dueDate: t.deadline ? t.deadline.split('T')[0] : '',
-                assignee: t.assignee_id ? 'Admin' : 'Unassigned' // Basic mapping for now
+                assignee: t.assignee_id ? 'Admin' : 'Unassigned', // Basic mapping for now
+                checklist: t.checklist || [],
+                timeSpent: t.time_spent || 0
             }));
 
             const mappedLeads = (leadsData || []).map(l => ({
@@ -105,7 +110,9 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
                 stage: l.status || 'prospect',
                 painPoints: l.pain_points,
                 nextMeeting: l.meeting_date,
-                timeline: l.history || []
+                timeline: l.history || [],
+                segment: l.segment || '',
+                website: l.website || ''
             }));
 
             const mappedSops = (sopsData || []).map(s => ({
@@ -160,6 +167,9 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             links: c.links,
             sales_snapshot: c.salesSnapshot,
             onboarding_checklist: c.onboardingChecklist,
+            client_revenue_monthly: c.clientRevenue,
+            client_roas_monthly: c.clientRoas,
+            client_leads_monthly: c.clientLeads,
             user_id: user?.id
         };
         const { data, error } = await supabase.from('clients').insert([payload]).select();
@@ -181,6 +191,9 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             links: c.links,
             sales_snapshot: c.salesSnapshot,
             onboarding_checklist: c.onboardingChecklist,
+            client_revenue_monthly: c.clientRevenue,
+            client_roas_monthly: c.clientRoas,
+            client_leads_monthly: c.clientLeads,
         };
         const { error } = await supabase.from('clients').update(payload).eq('id', c.id);
         if (!error) setClients(prev => prev.map(item => item.id === c.id ? c : item));
@@ -194,6 +207,8 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             status: t.status,
             priority: t.priority,
             deadline: t.dueDate,
+            checklist: t.checklist || [],
+            time_spent: t.timeSpent || 0,
             user_id: user?.id
         };
         const { data, error } = await supabase.from('tasks').insert([payload]).select();
@@ -211,6 +226,8 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             status: t.status,
             priority: t.priority,
             deadline: t.dueDate,
+            checklist: t.checklist,
+            time_spent: t.timeSpent,
         };
         const { error } = await supabase.from('tasks').update(payload).eq('id', t.id);
         if (!error) setTasks(prev => prev.map(item => item.id === t.id ? t : item));
@@ -231,6 +248,8 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             pain_points: l.painPoints,
             meeting_date: l.nextMeeting,
             history: l.timeline,
+            segment: l.segment,
+            website: l.website,
             user_id: user?.id
         };
         const { data, error } = await supabase.from('leads').insert([payload]).select();
@@ -250,6 +269,8 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             pain_points: l.painPoints,
             meeting_date: l.nextMeeting,
             history: l.timeline,
+            segment: l.segment,
+            website: l.website,
         };
         const { error } = await supabase.from('leads').update(payload).eq('id', l.id);
         if (!error) setLeads(prev => prev.map(item => item.id === l.id ? l : item));

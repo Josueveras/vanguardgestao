@@ -23,6 +23,7 @@ import {
 import { Card, Button, Modal, Toast } from '../components/ui';
 import { Task, Lead, Client, SOPItem } from '../types';
 import { useVanguard } from '../context/VanguardContext';
+import { useAuth } from '../context/AuthContext';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -33,6 +34,8 @@ export const HomeModule = () => {
     clients, tasks, leads, sops, setProjectFilter,
     addTask, addLead, addClient, addSOP, loading
   } = useVanguard();
+  const { user } = useAuth();
+
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<'task' | 'lead' | 'client' | 'note' | null>(null);
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
@@ -52,23 +55,22 @@ export const HomeModule = () => {
       .slice(0, 5);
   }, [tasks]);
 
-  // 2. Agenda de Hoje (Tarefas de Hoje + Compromissos)
+  // 2. Agenda de Hoje (Compromissos Reais/Mock)
   const agenda = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const todayTasks = tasks.filter(t => t.dueDate === today && t.status !== 'done');
+    // Current requirement: show commitments, not tasks.
+    const mockMeetings = [
+      { id: 'm1', time: '10:00', title: 'Reunião de Alinhamento - Estratégia', type: 'Google Meet', isMeeting: true },
+      { id: 'm2', time: '14:00', title: 'Briefing Novo Cliente', type: 'Google Meet', isMeeting: true },
+      { id: 'm3', time: '16:30', title: 'Review Semanal de Performance', type: 'Interno', isMeeting: true },
+      { id: 'm4', time: '17:30', title: 'Check-in Time Criativo', type: 'Interno', isMeeting: true },
+    ];
 
-    const mockMeetings: any[] = [];
+    return mockMeetings;
+  }, []);
 
-    const taskItems = todayTasks.map(t => ({
-      id: t.id,
-      time: 'Até as 18h',
-      title: `Entrega: ${t.title}`,
-      type: 'Tarefa / Prazo',
-      isTask: true
-    }));
+  const [showAllAgenda, setShowAllAgenda] = useState(false);
+  const displayedAgenda = showAllAgenda ? agenda : agenda.slice(0, 3);
 
-    return [...mockMeetings, ...taskItems];
-  }, [tasks]);
 
   // 3. Atividade Recente (Dinâmica)
   const recentActivity = useMemo(() => {
@@ -90,8 +92,13 @@ export const HomeModule = () => {
       color: 'green'
     }));
 
-    return [...recentTasks, ...recentLeads].sort(() => Math.random() - 0.5).slice(0, 5);
+    // Concat and show most recent first (they are already reversed)
+    return [...recentTasks, ...recentLeads].slice(0, 5);
   }, [tasks, leads]);
+
+  const [showAllActivity, setShowAllActivity] = useState(false);
+  const displayedActivity = showAllActivity ? recentActivity : recentActivity.slice(0, 3);
+
 
   // Handlers para Ações Rápidas
   const handleSaveQuickTask = async () => {
@@ -202,16 +209,56 @@ export const HomeModule = () => {
   const kpis = useMemo(() => {
     const totalMRR = clients.reduce((acc, client) => acc + (Number(client.mrr) || 0), 0);
     const totalLeads = leads.length;
-    const activeProjects = tasks.filter(t => t.status === 'doing').length;
-    const pendingSOPs = sops.length; // Just a count for now
+
+    const calculateEvolution = (items: any[]) => {
+      const now = new Date();
+      const thisMonth = now.getMonth();
+      const thisYear = now.getFullYear();
+
+      const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+      const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+
+      const currentItems = items.filter(i => {
+        const d = new Date(i.created_at);
+        return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+      }).length;
+
+      const previousItems = items.filter(i => {
+        const d = new Date(i.created_at);
+        return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+      }).length;
+
+      if (previousItems === 0) return { change: '0%', trend: 'neutral' as const };
+      const change = ((currentItems - previousItems) / previousItems) * 100;
+      return {
+        change: `${Math.abs(Math.round(change))}%`,
+        trend: change >= 0 ? 'up' as const : 'down' as const
+      };
+    };
+
+    const mrrEvolution = calculateEvolution(clients);
+    const leadsEvolution = calculateEvolution(leads);
+    const projectsEvolution = calculateEvolution(tasks);
+    const sopsEvolution = calculateEvolution(sops);
 
     return [
-      { label: 'MRR ATIVO', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalMRR), change: '0%', trend: 'neutral' as const, icon: ChartLineUp, target: 'CLIENTS' as const },
-      { label: 'LEADS NO PIPELINE', value: totalLeads.toString(), change: '0%', trend: 'neutral' as const, icon: Users, target: 'CRM' as const },
-      { label: 'PROJETOS ATIVOS', value: activeProjects.toString(), change: '0%', trend: 'neutral' as const, icon: Kanban, target: 'PROJECTS' as const },
-      { label: 'PROCESSOS (SOPs)', value: pendingSOPs.toString(), change: '0%', trend: 'neutral' as const, icon: Files, target: 'SOP' as const },
+      { label: 'MRR ATIVO', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalMRR), change: mrrEvolution.change, trend: mrrEvolution.trend, icon: ChartLineUp, target: 'CLIENTS' as const },
+      { label: 'LEADS NO PIPELINE', value: totalLeads.toString(), change: leadsEvolution.change, trend: leadsEvolution.trend, icon: Users, target: 'CRM' as const },
+      { label: 'PROJETOS ATIVOS', value: tasks.filter(t => t.status === 'doing').length.toString(), change: projectsEvolution.change, trend: projectsEvolution.trend, icon: Kanban, target: 'PROJECTS' as const },
+      { label: 'SOPs & PLAYBOOKS', value: sops.length.toString(), change: sopsEvolution.change, trend: sopsEvolution.trend, icon: Files, target: 'SOP' as const },
     ];
-  }, [clients, leads, tasks, sops]); // Added sops to dependencies
+  }, [clients, leads, tasks, sops]);
+
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Bom dia';
+    if (hour >= 12 && hour < 18) return 'Boa tarde';
+    return 'Boa noite';
+  }, []);
+
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin';
+
 
   return (
     <div className="space-y-8 relative">
@@ -278,7 +325,7 @@ export const HomeModule = () => {
         <>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-vblack">Boa noite, Admin</h1>
+              <h1 className="text-3xl font-bold text-vblack">{greeting}, {userName}</h1>
               <p className="text-gray-500 mt-1">
                 Resumo: Você tem <span className="font-bold text-vred">{priorities.length} tarefas prioritárias</span> exigindo atenção.
               </p>
@@ -382,12 +429,19 @@ export const HomeModule = () => {
               </Card>
 
               <div className="bg-transparent pt-4">
-                <div className="flex items-center gap-2 mb-6">
-                  <Clock size={20} className="text-gray-400" />
-                  <h3 className="text-lg font-bold text-vblack">Atividade Recente</h3>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <Clock size={20} className="text-gray-400" />
+                    <h3 className="text-lg font-bold text-vblack">Atividade Recente</h3>
+                  </div>
+                  {recentActivity.length > 3 && (
+                    <button onClick={() => setShowAllActivity(!showAllActivity)} className="text-xs font-bold text-vred hover:underline uppercase tracking-wider">
+                      {showAllActivity ? 'Ver menos' : 'Ver tudo'}
+                    </button>
+                  )}
                 </div>
                 <div className="relative pl-2 space-y-8 border-l border-gray-200 ml-2">
-                  {recentActivity.map((act, idx) => (
+                  {displayedActivity.map((act, idx) => (
                     <div
                       key={idx}
                       className="relative pl-6 cursor-pointer hover:opacity-80 transition-opacity select-none"
@@ -404,7 +458,7 @@ export const HomeModule = () => {
                       <p className="text-xs text-gray-400 mt-1">{act.meta} • {act.user}</p>
                     </div>
                   ))}
-                  {recentActivity.length === 0 && (
+                  {displayedActivity.length === 0 && (
                     <p className="pl-6 text-sm text-gray-400 italic">Nenhuma atividade recente registrada.</p>
                   )}
                 </div>
@@ -412,10 +466,18 @@ export const HomeModule = () => {
             </div>
 
             <div className="space-y-8">
-              <Card title="Agenda de Hoje" className="h-fit">
+              <Card
+                title="Agenda de Hoje"
+                className="h-fit"
+                action={agenda.length > 3 && (
+                  <button onClick={() => setShowAllAgenda(!showAllAgenda)} className="text-[10px] font-bold text-gray-400 hover:text-vblack uppercase">
+                    {showAllAgenda ? 'Ver menos' : 'Ver mais'}
+                  </button>
+                )}
+              >
                 <div className="space-y-6 relative">
                   <div className="absolute left-[3px] top-2 bottom-2 w-0.5 bg-gray-100 rounded-full"></div>
-                  {agenda.length > 0 ? agenda.map((item, idx) => (
+                  {displayedAgenda.length > 0 ? displayedAgenda.map((item: any, idx) => (
                     <div
                       key={idx}
                       className={`relative pl-6 ${item.isTask ? 'cursor-pointer hover:bg-gray-50/50 rounded-r-lg transition-colors py-1 -my-1 select-none' : ''}`}

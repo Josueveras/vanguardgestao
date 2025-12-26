@@ -44,6 +44,10 @@ export interface Client {
   salesSnapshot?: ClientSalesSnapshot;
   onboardingChecklist?: ChecklistItem[];
   nextMeeting?: string;
+  // New metrics fields
+  clientRevenue?: number;
+  clientRoas?: number;
+  clientLeads?: number;
 }
 
 export interface Campaign {
@@ -60,7 +64,7 @@ export interface Campaign {
 
 export interface LeadHistoryItem {
   id: string;
-  type: 'creation' | 'status_change' | 'note' | 'contact';
+  type: 'creation' | 'status_change' | 'note' | 'contact' | 'update';
   date: string; // ISO
   author: string;
   description: string;
@@ -74,7 +78,7 @@ export interface Lead {
   size?: string;
   city?: string;
   website?: string;
-  
+
   // Value & Stage
   value: number;
   stage: 'prospect' | 'qualificacao' | 'diagnostico' | 'proposta' | 'fechado';
@@ -114,6 +118,8 @@ export interface Task {
   tag: 'marketing' | 'tech' | 'sales';
   assignee: string;
   dueDate: string;
+  checklist?: ChecklistItem[];
+  timeSpent?: number; // in seconds
 }
 
 export interface KPIMetric {

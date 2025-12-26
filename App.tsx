@@ -20,6 +20,8 @@ const SOPModule = React.lazy(() => import('./pages/SOP').then(module => ({ defau
 const SettingsModule = React.lazy(() => import('./pages/Settings').then(module => ({ default: module.SettingsModule })));
 
 const App: React.FC = () => {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+
   return (
     <AuthProvider>
       <VanguardProvider>
@@ -36,8 +38,8 @@ const App: React.FC = () => {
                 element={
                   <ProtectedRoute>
                     <div className="flex h-screen overflow-hidden bg-vgray">
-                      <Sidebar />
-                      <div className="flex-1 ml-64 flex flex-col h-screen overflow-hidden transition-colors duration-500">
+                      <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
+                      <div className={`flex-1 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'} flex flex-col h-screen overflow-hidden transition-all duration-300 bg-vgray`}>
                         <TopBar />
                         <main className="flex-1 overflow-auto custom-scrollbar transition-colors duration-500 p-8 bg-vgray">
                           <div className="max-w-7xl mx-auto animate-fadeIn">
