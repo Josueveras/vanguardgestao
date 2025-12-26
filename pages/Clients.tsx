@@ -333,7 +333,6 @@ export const ClientsModule: React.FC = () => {
           title="MRR Total"
           value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalMRR)}
           icon={CurrencyDollar}
-          trend="+5%"
           type="success"
         />
         <ClientMetricCard
@@ -362,8 +361,8 @@ export const ClientsModule: React.FC = () => {
             key={f}
             onClick={() => setFilter(f as any)}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors capitalize ${filter === f
-                ? 'bg-vblack text-white shadow-sm'
-                : 'text-gray-500 hover:bg-gray-100 hover:text-vblack'
+              ? 'bg-vblack text-white shadow-sm'
+              : 'text-gray-500 hover:bg-gray-100 hover:text-vblack'
               }`}
           >
             {f === 'all' ? 'Todos' : f === 'active' ? 'Ativos' : f === 'risk' ? 'Risco' : 'Onboarding'}
@@ -407,8 +406,8 @@ export const ClientsModule: React.FC = () => {
                   <td className="px-6 py-4 text-gray-600">{client.plan}</td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${client.status === 'active' ? 'bg-green-100 text-green-700' :
-                        client.status === 'risk' ? 'bg-red-100 text-red-700' :
-                          'bg-blue-100 text-blue-700'
+                      client.status === 'risk' ? 'bg-red-100 text-red-700' :
+                        'bg-blue-100 text-blue-700'
                       }`}>
                       {client.status}
                     </span>

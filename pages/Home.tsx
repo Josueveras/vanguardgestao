@@ -57,10 +57,7 @@ export const HomeModule = () => {
     const today = new Date().toISOString().split('T')[0];
     const todayTasks = tasks.filter(t => t.dueDate === today && t.status !== 'done');
 
-    const mockMeetings = [
-      { id: 'm1', time: '14:00', title: 'Reunião: TechSolutions', type: 'Google Meet', isTask: false },
-      { id: 'm2', time: '16:00', title: 'Reunião: Construtora Elite', type: 'Google Meet', isTask: false },
-    ];
+    const mockMeetings: any[] = [];
 
     const taskItems = todayTasks.map(t => ({
       id: t.id,

@@ -22,7 +22,7 @@ const MetricCard = ({ title, value, subtext, trend, prefix = '' }: any) => (
           trend === 'down' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
           }`}>
           {trend === 'up' ? <TrendUp weight="bold" className="mr-1" /> : <TrendDown weight="bold" className="mr-1" />}
-          12%
+          {trend}
         </span>
       )}
       <span className="text-xs text-gray-400">{subtext}</span>
