@@ -34,7 +34,7 @@ export interface Client {
   name: string;
   logo: string;
   mrr: number;
-  status: 'active' | 'churn' | 'onboarding' | 'risk';
+  status: 'ativo' | 'cancelado' | 'onboarding' | 'em_risco';
   plan: string;
   healthScore: number;
   lastInteraction: string;
@@ -108,17 +108,32 @@ export interface Lead {
   notes?: string;
 }
 
+export interface Subtask {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export interface TaskComment {
+  id: string;
+  author: string;
+  text: string;
+  date: string; // ISO
+}
+
 export interface Task {
   id: string;
   title: string;
   description?: string; // Added description
   project: string;
-  status: 'todo' | 'doing' | 'review' | 'done';
-  priority: 'low' | 'medium' | 'high';
-  tag: 'marketing' | 'tech' | 'sales';
-  assignee: string;
+  status: 'a_fazer' | 'fazendo' | 'revisao' | 'concluido';
+  priority: 'baixa' | 'media' | 'alta' | 'urgente';
+  tag: 'marketing' | 'tecnologia' | 'vendas';
+  assignees: string[];
   dueDate: string;
   checklist?: ChecklistItem[];
+  subtasks?: Subtask[];
+  comments?: TaskComment[];
   timeSpent?: number; // in seconds
 }
 
@@ -169,8 +184,8 @@ export interface ContentItem {
   title: string;
   client: string;
   platform: 'instagram' | 'linkedin' | 'tiktok' | 'youtube' | 'blog';
-  format: 'image' | 'video' | 'carousel' | 'article' | 'stories';
-  status: 'idea' | 'briefing' | 'production' | 'review' | 'scheduled' | 'published';
+  format: 'imagem' | 'video' | 'carrossel' | 'artigo' | 'stories';
+  status: 'ideia' | 'briefing' | 'producao' | 'revisao' | 'agendado' | 'publicado';
   date: string; // ISO or display date
   assignee: string;
   creativeUrl?: string; // Added for visual preview

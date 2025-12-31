@@ -451,7 +451,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                                         <div key={t.id} className="relative">
                                             <div className="absolute -left-[27px] top-1.5 w-3.5 h-3.5 rounded-full bg-gray-200 border-2 border-white shadow-sm"></div>
                                             <p className="text-sm font-bold text-gray-900 leading-tight">{t.title}</p>
-                                            <p className="text-xs text-gray-500 mt-1">{t.status} • {t.assignee}</p>
+                                            <p className="text-xs text-gray-500 mt-1">{t.status} • {t.assignees?.[0] || '?'}</p>
                                         </div>
                                     ))}
                                     {clientTasks.length === 0 && <span className="text-xs text-gray-400">Nenhuma tarefa recente.</span>}
@@ -558,7 +558,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4">
-                                        <span className="text-xs font-medium px-2 py-1 bg-gray-100 rounded text-gray-600">{task.assignee}</span>
+                                        <span className="text-xs font-medium px-2 py-1 bg-gray-100 rounded text-gray-600">{task.assignees?.[0] || 'Unassigned'}</span>
                                         <span className="text-xs text-gray-400">{task.dueDate}</span>
                                     </div>
                                 </div>

@@ -217,7 +217,7 @@ const LeadFormModal: React.FC<{
 
         <div className="flex border-b border-gray-200 px-6 bg-gray-50/50">
           {[{ id: 'data', icon: Buildings, label: 'Dados' }, { id: 'timeline', icon: Clock, label: 'Timeline' }, { id: 'notes', icon: Notepad, label: 'Notas' }].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all ${activeTab === tab.id ? 'border-vblack text-vblack bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as 'data' | 'timeline' | 'notes')} className={`flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all ${activeTab === tab.id ? 'border-vblack text-vblack bg-white' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               <tab.icon size={18} weight={activeTab === tab.id ? 'fill' : 'regular'} /> {tab.label}
             </button>
           ))}
@@ -240,7 +240,7 @@ const LeadFormModal: React.FC<{
                     <option value="Indicação">Indicação</option>
                     <option value="Google Ads">Google Ads</option>
                     <option value="Meta Ads">Meta Ads</option>
-                    <option value="Outbound">Outbound</option>
+                    <option value="Outbound">Captação Direta</option>
                   </select>
                 </div>
               </div>
@@ -325,7 +325,8 @@ export const CRMModule: React.FC = () => {
         await updateLead(leadToSave);
         setToast({ msg: 'Lead atualizado!', type: 'success' });
       } else {
-        await addLead(leadToSave as any);
+        // Safe cast as we validated company and name
+        await addLead(leadToSave as unknown as Omit<Lead, 'id' | 'user_id' | 'created_at'>);
         setToast({ msg: 'Novo lead criado!', type: 'success' });
       }
       setIsModalOpen(false);

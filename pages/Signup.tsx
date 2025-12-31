@@ -7,6 +7,7 @@ export const SignupModule = () => {
     const navigate = useNavigate();
     const { signUp } = useAuth();
     const [email, setEmail] = useState('');
+    const [name, setName] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
@@ -28,9 +29,14 @@ export const SignupModule = () => {
             return;
         }
 
+        if (!name.trim()) {
+            setError('Por favor, informe seu nome');
+            return;
+        }
+
         setLoading(true);
 
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, name);
 
         if (error) {
             setError(error.message);
@@ -80,6 +86,24 @@ export const SignupModule = () => {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-vblack mb-2">Nome Completo</label>
+                            <div className="relative">
+                                <UserPlus
+                                    size={20}
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                />
+                                <input
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-vred focus:border-transparent"
+                                    placeholder="Seu Nome"
+                                    required
+                                    disabled={loading || success}
+                                />
+                            </div>
+                        </div>
                         <div>
                             <label className="block text-sm font-semibold text-vblack mb-2">Email</label>
                             <div className="relative">

@@ -11,7 +11,7 @@ export const TopBar: React.FC = () => {
     setShowUserMenu(false);
   };
 
-  const userInitials = user?.email?.substring(0, 2).toUpperCase() || 'AD';
+  const userInitials = (user?.user_metadata?.full_name || user?.email || 'AD').substring(0, 2).toUpperCase();
 
   return (
     <header className="h-16 flex items-center justify-between px-6 sticky top-0 z-10 transition-colors duration-500 bg-white/80 border-b border-gray-100 backdrop-blur-md">
@@ -58,7 +58,7 @@ export const TopBar: React.FC = () => {
                 <div className="px-4 py-3 border-b border-gray-100">
                   <p className="text-xs text-gray-500 mb-1">Conectado como</p>
                   <p className="text-sm font-semibold text-vblack truncate">
-                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário'}
+                    {user?.user_metadata?.full_name || user?.email || 'Usuário'}
                   </p>
                 </div>
                 <button

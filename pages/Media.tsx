@@ -209,12 +209,12 @@ export const MediaModule: React.FC = () => {
     const [isSaving, setIsSaving] = useState(false);
 
     const columns = [
-        { id: 'idea', label: 'Ideia', icon: Lightbulb },
+        { id: 'ideia', label: 'Ideia', icon: Lightbulb },
         { id: 'briefing', label: 'Roteiro', icon: PencilSimple },
-        { id: 'production', label: 'Produção', icon: PaintBrush },
-        { id: 'review', label: 'Aprovação', icon: CheckCircle },
-        { id: 'scheduled', label: 'Agendado', icon: CalendarBlank },
-        { id: 'published', label: 'Postado', icon: PaperPlaneRight },
+        { id: 'producao', label: 'Produção', icon: PaintBrush },
+        { id: 'revisao', label: 'Aprovação', icon: CheckCircle },
+        { id: 'agendado', label: 'Agendado', icon: CalendarBlank },
+        { id: 'publicado', label: 'Postado', icon: PaperPlaneRight },
     ];
 
     const filteredContent = content.filter(c =>
@@ -248,9 +248,9 @@ export const MediaModule: React.FC = () => {
 
     const handleCreate = () => {
         setEditingItem({
-            status: 'idea',
+            status: 'ideia',
             platform: 'instagram',
-            format: 'image',
+            format: 'imagem',
             date: new Date().toISOString().split('T')[0],
             caption: ''
         });
@@ -395,18 +395,18 @@ export const MediaModule: React.FC = () => {
                                             value={editingItem.format || 'image'}
                                             onChange={e => setEditingItem({ ...editingItem, format: e.target.value as any })}
                                         >
-                                            <option value="image">Post (Imagem)</option>
+                                            <option value="imagem">Post (Imagem)</option>
                                             <option value="video">Reels / Vídeo</option>
-                                            <option value="carousel">Carrossel</option>
+                                            <option value="carrossel">Carrossel</option>
                                             <option value="stories">Stories</option>
-                                            <option value="article">Artigo</option>
+                                            <option value="artigo">Artigo</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label className="text-xs font-bold text-gray-500 uppercase">Status</label>
                                         <select
                                             className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white"
-                                            value={editingItem.status || 'idea'}
+                                            value={editingItem.status || 'ideia'}
                                             onChange={e => setEditingItem({ ...editingItem, status: e.target.value as any })}
                                         >
                                             {columns.map(col => <option key={col.id} value={col.id}>{col.label}</option>)}

@@ -99,7 +99,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             const mappedTasks = (tasksData || []).map(t => ({
                 ...t,
                 dueDate: t.deadline ? t.deadline.split('T')[0] : '',
-                assignee: t.assignee_id ? 'Admin' : 'Unassigned', // Basic mapping for now
+                assignees: t.assignee_id ? ['Admin'] : [], // Basic mapping for now
                 checklist: t.checklist || [],
                 timeSpent: t.time_spent || 0
             }));
@@ -134,11 +134,27 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             setContent(mappedContent as ContentItem[]);
 
             if (perfData) {
-                setPerformance({
-                    ...perfData,
+                const mappedPerformance: PerformanceReport = {
+                    clientId: perfData.client_id || '', // Start with safe defaults or map correctly
+                    month: perfData.month || '',
                     investment: perfData.invested || 0,
+                    leads: perfData.leads || 0,
+                    sales: perfData.sales || 0,
+                    revenue: perfData.revenue || 0,
+                    roi: perfData.roi || 0,
+                    roas: perfData.roas || 0,
+                    cpl: perfData.cpl || 0,
+                    cac: perfData.cac || 0,
+                    insights: perfData.insights || {
+                        bestCampaign: '',
+                        worstCampaign: '',
+                        bottleneck: '',
+                        opportunity: '',
+                        recommendations: []
+                    },
                     history: perfData.history || []
-                } as any);
+                };
+                setPerformance(mappedPerformance);
             } else {
                 setPerformance(null);
             }

@@ -6,9 +6,10 @@ interface AuthContextType {
     user: User | null;
     session: Session | null;
     loading: boolean;
-    signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+    signUp: (email: string, password: string, fullName: string) => Promise<{ error: AuthError | null }>;
     signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<void>;
+    updateProfile: (data: { full_name?: string; phone?: string; role?: string }) => Promise<{ error: AuthError | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,10 +39,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return () => subscription.unsubscribe();
     }, []);
 
-    const signUp = async (email: string, password: string) => {
+    const signUp = async (email: string, password: string, fullName: string) => {
         const { error } = await supabase.auth.signUp({
             email,
             password,
+            options: {
+                data: {
+                    full_name: fullName,
+                },
+            },
         });
         return { error };
     };
@@ -58,8 +64,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await supabase.auth.signOut();
     };
 
+    const updateProfile = async (data: { full_name?: string; phone?: string; role?: string }) => {
+        const { error } = await supabase.auth.updateUser({
+            data: data
+        });
+        if (!error) {
+            const { data: { user } } = await supabase.auth.getUser();
+            setUser(user);
+        }
+        return { error };
+    };
+
     return (
-        <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+        <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, updateProfile }}>
             {children}
         </AuthContext.Provider>
     );

@@ -55,9 +55,9 @@ const ClientMetricCard = ({ title, value, icon: Icon, trend, type = 'neutral' }:
 const ClientCard: React.FC<{ client: Client; onClick: () => void; onEdit: (e: React.MouseEvent) => void }> = ({ client, onClick, onEdit }) => {
   const getStatusStyle = (status: Client['status']) => {
     switch (status) {
-      case 'active': return { bg: 'bg-green-50', text: 'text-green-700', icon: CheckCircle, label: 'Ativo' };
+      case 'ativo': return { bg: 'bg-green-50', text: 'text-green-700', icon: CheckCircle, label: 'Ativo' };
       case 'onboarding': return { bg: 'bg-blue-50', text: 'text-blue-700', icon: Rocket, label: 'Onboarding' };
-      case 'risk': return { bg: 'bg-red-50', text: 'text-red-700', icon: WarningCircle, label: 'Risco' };
+      case 'em_risco': return { bg: 'bg-red-50', text: 'text-red-700', icon: WarningCircle, label: 'Risco' };
       default: return { bg: 'bg-gray-50', text: 'text-gray-700', icon: CheckCircle, label: status };
     }
   };
@@ -142,7 +142,7 @@ export const ClientsModule: React.FC = () => {
   const { clients, tasks, content, campaigns, updateClient, addClient, loading } = useVanguard();
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filter, setFilter] = useState<'all' | 'active' | 'onboarding' | 'risk'>('all');
+  const [filter, setFilter] = useState<'all' | 'ativo' | 'onboarding' | 'em_risco'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [editingClient, setEditingClient] = useState<Partial<Client> | null>(null);
@@ -151,9 +151,9 @@ export const ClientsModule: React.FC = () => {
 
   // Metrics Calculation
   const totalMRR = clients.reduce((acc, client) => acc + client.mrr, 0);
-  const activeCount = clients.filter(c => c.status === 'active' || c.status === 'onboarding').length;
+  const activeCount = clients.filter(c => c.status === 'ativo' || c.status === 'onboarding').length;
   const avgTicket = clients.length > 0 ? totalMRR / clients.length : 0;
-  const riskCount = clients.filter(c => c.status === 'risk').length;
+  const riskCount = clients.filter(c => c.status === 'em_risco').length;
 
   const filteredClients = clients.filter(client => {
     const matchesFilter = filter === 'all' || client.status === filter;
@@ -254,13 +254,13 @@ export const ClientsModule: React.FC = () => {
                 <label className="text-xs font-bold text-gray-500 uppercase">Status</label>
                 <select
                   className="w-full border p-2 rounded mt-1 text-sm bg-white outline-none focus:ring-2 focus:ring-vred/10 transition-all"
-                  value={editingClient.status || 'active'}
-                  onChange={(e) => setEditingClient({ ...editingClient, status: e.target.value as any })}
+                  value={editingClient.status || 'ativo'}
+                  onChange={(e) => setEditingClient({ ...editingClient, status: e.target.value as Client['status'] })}
                 >
-                  <option value="active">Ativo</option>
+                  <option value="ativo">Ativo</option>
                   <option value="onboarding">Onboarding</option>
-                  <option value="risk">Risco</option>
-                  <option value="churn">Churn</option>
+                  <option value="em_risco">Risco</option>
+                  <option value="cancelado">Churn</option>
                 </select>
               </div>
               <div>
@@ -356,7 +356,7 @@ export const ClientsModule: React.FC = () => {
       </div>
 
       <div className="flex gap-2 border-b border-gray-200 pb-1">
-        {['all', 'active', 'onboarding', 'risk'].map((f) => (
+        {['all', 'ativo', 'onboarding', 'em_risco'].map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f as any)}
@@ -365,7 +365,7 @@ export const ClientsModule: React.FC = () => {
               : 'text-gray-500 hover:bg-gray-100 hover:text-vblack'
               }`}
           >
-            {f === 'all' ? 'Todos' : f === 'active' ? 'Ativos' : f === 'risk' ? 'Risco' : 'Onboarding'}
+            {f === 'all' ? 'Todos' : f === 'ativo' ? 'Ativos' : f === 'em_risco' ? 'Risco' : 'Onboarding'}
           </button>
         ))}
       </div>
@@ -405,8 +405,8 @@ export const ClientsModule: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-gray-600">{client.plan}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${client.status === 'active' ? 'bg-green-100 text-green-700' :
-                      client.status === 'risk' ? 'bg-red-100 text-red-700' :
+                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${client.status === 'ativo' ? 'bg-green-100 text-green-700' :
+                      client.status === 'em_risco' ? 'bg-red-100 text-red-700' :
                         'bg-blue-100 text-blue-700'
                       }`}>
                       {client.status}

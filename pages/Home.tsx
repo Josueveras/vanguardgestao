@@ -79,7 +79,7 @@ export const HomeModule = () => {
       type: 'task',
       title: t.title,
       meta: t.status === 'done' ? 'Concluída' : 'Nova Tarefa',
-      user: t.assignee || 'Admin',
+      user: (t.assignees && t.assignees.length > 0) ? t.assignees[0] : 'Admin',
       color: 'blue'
     }));
 
@@ -110,10 +110,10 @@ export const HomeModule = () => {
         priority: quickTask.priority as any,
         project: quickTask.project,
         status: 'todo',
-        assignee: 'Admin',
+        assignees: ['Admin'],
         dueDate: new Date().toISOString().split('T')[0],
         tag: 'marketing'
-      } as any);
+      } as unknown as Omit<Task, 'id' | 'user_id' | 'created_at'>);
       setToast({ msg: 'Tarefa criada com sucesso!', type: 'success' });
       setActiveModal(null);
       setQuickTask({ title: '', priority: 'medium', project: '' });
@@ -135,7 +135,7 @@ export const HomeModule = () => {
         stage: 'prospect',
         origin: 'Hub Rápido',
         lastContact: 'Agora'
-      } as any);
+      } as unknown as Omit<Lead, 'id' | 'user_id' | 'created_at'>);
       setToast({ msg: 'Lead adicionado ao pipeline!', type: 'success' });
       setActiveModal(null);
       setQuickLead({ company: '', value: 0 });
@@ -160,7 +160,7 @@ export const HomeModule = () => {
         plan: 'Growth',
         links: [],
         strategy: {}
-      } as any);
+      } as unknown as Omit<Client, 'id' | 'user_id' | 'created_at'>);
       setToast({ msg: 'Cliente cadastrado!', type: 'success' });
       setActiveModal(null);
       setQuickClient({ name: '', mrr: 0 });
@@ -180,7 +180,7 @@ export const HomeModule = () => {
         content: quickNote.content,
         category: 'Geral',
         lastUpdated: 'Agora'
-      } as any);
+      } as unknown as Omit<SOPItem, 'id' | 'user_id' | 'created_at'>);
       setToast({ msg: 'Nota salva em SOP > Geral', type: 'success' });
       setActiveModal(null);
       setQuickNote({ title: '', content: '' });
@@ -269,7 +269,7 @@ export const HomeModule = () => {
       <Modal isOpen={activeModal === 'task'} onClose={() => setActiveModal(null)} title="Nova Tarefa Rápida" size="sm">
         <div className="p-6 space-y-4">
           <input className="w-full border p-2 rounded text-sm" placeholder="O que precisa ser feito?" value={quickTask.title} onChange={e => setQuickTask({ ...quickTask, title: e.target.value })} autoFocus />
-          <select className="w-full border p-2 rounded text-sm bg-white" value={quickTask.priority} onChange={e => setQuickTask({ ...quickTask, priority: e.target.value as any })}>
+          <select className="w-full border p-2 rounded text-sm bg-white" value={quickTask.priority} onChange={e => setQuickTask({ ...quickTask, priority: e.target.value as Task['priority'] })}>
             <option value="medium">Prioridade Média</option>
             <option value="high">Alta Prioridade</option>
             <option value="low">Baixa Prioridade</option>

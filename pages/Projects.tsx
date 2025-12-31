@@ -17,14 +17,16 @@ import {
     X
 } from '@phosphor-icons/react';
 import { Modal, MetricCard } from '../components/ui';
+import { TaskFormModal } from '../components/TaskFormModal';
 import { useVanguard } from '../context/VanguardContext';
 
 const ProjectTaskCard: React.FC<{ task: Task; onClick: (t: Task) => void }> = React.memo(({ task, onClick }) => {
     const getPriorityColor = (p: string) => {
         switch (p) {
-            case 'high': return 'bg-red-100 text-red-700';
-            case 'medium': return 'bg-orange-100 text-orange-700';
-            case 'low': return 'bg-gray-100 text-gray-700';
+            case 'alta':
+            case 'urgente': return 'bg-red-100 text-red-700';
+            case 'media': return 'bg-orange-100 text-orange-700';
+            case 'baixa': return 'bg-gray-100 text-gray-700';
             default: return 'bg-gray-100 text-gray-700';
         }
     };
@@ -37,9 +39,26 @@ const ProjectTaskCard: React.FC<{ task: Task; onClick: (t: Task) => void }> = Re
             </div>
             <p className="text-sm font-bold text-vblack leading-snug mb-1">{task.title}</p>
             <div className="flex justify-between items-center border-t border-gray-50 pt-3">
-                <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-vblack text-white text-[10px] flex items-center justify-center font-bold">{task.assignee ? task.assignee.charAt(0) : '?'}</div>
-                    <span className="text-xs text-gray-500 truncate max-w-[80px]">{task.project}</span>
+                <div className="flex items-center -space-x-1.5 overflow-hidden">
+                    {(task.assignees && task.assignees.length > 0) ? (
+                        <>
+                            {task.assignees.slice(0, 3).map((assignee, idx) => (
+                                <div key={idx} className="w-6 h-6 rounded-full bg-vblack text-white text-[10px] flex items-center justify-center font-bold ring-2 ring-white" title={assignee}>
+                                    {assignee.charAt(0)}
+                                </div>
+                            ))}
+                            {task.assignees.length > 3 && (
+                                <div className="w-6 h-6 rounded-full bg-gray-100 text-gray-500 text-[8px] flex items-center justify-center font-bold ring-2 ring-white">
+                                    +{task.assignees.length - 3}
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="w-6 h-6 rounded-full bg-gray-100 text-gray-400 text-[10px] flex items-center justify-center font-bold ring-2 ring-white">?</div>
+                    )}
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-gray-500 truncate max-w-[80px]">
+                    <span className="truncate">{task.project}</span>
                 </div>
                 <span className="text-[10px] text-gray-400 font-medium">{task.dueDate}</span>
             </div>
@@ -135,25 +154,45 @@ export const ProjectsModule = () => {
         setIsModalOpen(true);
     }, []);
 
+    const uniqueAssignees = useMemo(() => {
+        const all = new Set<string>();
+        // Add defaults if desired
+        tasks.forEach(t => t.assignees?.forEach(a => all.add(a)));
+        return Array.from(all).sort();
+    }, [tasks]);
+
     const handleCreate = useCallback(() => {
-        setEditingTask({ priority: 'medium', status: 'todo', tag: 'marketing', dueDate: new Date().toISOString().split('T')[0], description: '' });
+        setEditingTask({
+            title: '',
+            description: '',
+            priority: 'media',
+            status: 'a_fazer',
+            tag: 'marketing',
+            dueDate: new Date().toISOString().split('T')[0],
+            subtasks: [],
+            checklist: [],
+            comments: [],
+            assignees: []
+        });
         setIsModalOpen(true);
     }, []);
 
-    const handleSave = useCallback(async () => {
-        if (!editingTask.title) return;
+    const handleSaveDirect = useCallback(async (task: Partial<Task>) => {
         setIsSaving(true);
         try {
-            if (editingTask.id) {
-                await updateTask(editingTask as Task);
+            if (task.id) {
+                await updateTask(task as Task);
             } else {
-                await addTask({ ...editingTask, assignee: editingTask.assignee || 'Admin' } as any);
+                await addTask({
+                    ...task,
+                    assignee: task.assignees && task.assignees.length > 0 ? task.assignees[0] : 'Admin'
+                } as any);
             }
             setIsModalOpen(false);
         } finally {
             setIsSaving(false);
         }
-    }, [editingTask, updateTask, addTask]);
+    }, [updateTask, addTask]);
 
     const handleDelete = useCallback(async () => {
         if (editingTask.id) {
@@ -181,126 +220,14 @@ export const ProjectsModule = () => {
 
     return (
         <div className="space-y-6 h-[calc(100vh-140px)] flex flex-col">
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingTask.id ? "Editar Tarefa" : "Nova Tarefa"} size="md">
-                <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar">
-                    <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Título</label>
-                            <input className="w-full border border-gray-200 p-2.5 rounded-lg mt-1 text-sm font-semibold outline-none focus:ring-2 focus:ring-vred/10 transition-all font-inter" value={editingTask.title || ''} onChange={e => setEditingTask({ ...editingTask, title: e.target.value })} placeholder="O que precisa ser feito?" />
-                        </div>
-                        {editingTask.id && (
-                            <div className="flex flex-col items-end">
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Timer</label>
-                                <button
-                                    onClick={() => handleToggleTimer(editingTask.id!)}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${activeTimerId === editingTask.id ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-vblack hover:bg-gray-200'}`}
-                                >
-                                    {activeTimerId === editingTask.id ? <Pause size={16} weight="bold" /> : <Play size={16} weight="bold" />}
-                                    {formatTime((editingTask.timeSpent || 0) + (activeTimerId === editingTask.id ? Math.floor((Date.now() - (timerStart || 0)) / 1000) : 0))}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                    <div><label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Descrição</label><textarea className="w-full border border-gray-200 p-2.5 rounded-lg mt-1 text-sm h-24 resize-none outline-none focus:ring-2 focus:ring-vred/10 transition-all" value={editingTask.description || ''} onChange={e => setEditingTask({ ...editingTask, description: e.target.value })} placeholder="Detalhes da tarefa..." /></div>
-
-                    {/* Checklist Section */}
-                    <div>
-                        <SectionTitle icon={ListChecks} color="text-green-500" title="Checklist" />
-                        <div className="space-y-2 mt-2">
-                            {(editingTask.checklist || []).map((item, idx) => (
-                                <div key={item.id} className="flex items-center gap-2 group">
-                                    <input
-                                        type="checkbox"
-                                        checked={item.completed}
-                                        onChange={() => {
-                                            const newList = [...(editingTask.checklist || [])];
-                                            newList[idx].completed = !newList[idx].completed;
-                                            setEditingTask({ ...editingTask, checklist: newList });
-                                        }}
-                                        className="w-4 h-4 rounded border-gray-300 text-vblack focus:ring-vblack"
-                                    />
-                                    <input
-                                        className={`flex-1 text-sm bg-transparent outline-none ${item.completed ? 'line-through text-gray-400' : 'text-vblack'}`}
-                                        value={item.label}
-                                        onChange={(e) => {
-                                            const newList = [...(editingTask.checklist || [])];
-                                            newList[idx].label = e.target.value;
-                                            setEditingTask({ ...editingTask, checklist: newList });
-                                        }}
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            const newList = (editingTask.checklist || []).filter((_, i) => i !== idx);
-                                            setEditingTask({ ...editingTask, checklist: newList });
-                                        }}
-                                        className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <Trash size={14} />
-                                    </button>
-                                </div>
-                            ))}
-                            <button
-                                onClick={() => {
-                                    const newItem = { id: `cl-${Date.now()}`, label: '', completed: false };
-                                    setEditingTask({ ...editingTask, checklist: [...(editingTask.checklist || []), newItem] });
-                                }}
-                                className="text-xs font-bold text-vred hover:underline mt-2 flex items-center gap-1"
-                            >
-                                <Plus size={14} weight="bold" /> Adicionar item
-                            </button>
-                        </div>
-                    </div>
-
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Status</label>
-                            <select className="w-full border border-gray-200 p-2.5 rounded-lg mt-1 text-sm bg-white outline-none focus:ring-2 focus:ring-vred/10 transition-all" value={editingTask.status} onChange={e => setEditingTask({ ...editingTask, status: e.target.value as any })}>
-                                <option value="todo">A Fazer</option>
-                                <option value="doing">Fazendo</option>
-                                <option value="review">Revisão</option>
-                                <option value="done">Concluído</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Prioridade</label>
-                            <select className="w-full border border-gray-200 p-2.5 rounded-lg mt-1 text-sm bg-white outline-none focus:ring-2 focus:ring-vred/10 transition-all" value={editingTask.priority} onChange={e => setEditingTask({ ...editingTask, priority: e.target.value as any })}>
-                                <option value="low">Baixa</option>
-                                <option value="medium">Média</option>
-                                <option value="high">Alta</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Projeto / Cliente</label>
-                        <select className="w-full border border-gray-200 p-2.5 rounded-lg mt-1 text-sm bg-white outline-none focus:ring-2 focus:ring-vred/10 transition-all" value={editingTask.project || ''} onChange={e => setEditingTask({ ...editingTask, project: e.target.value })}>
-                            <option value="">Geral</option>
-                            {clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                        </select>
-                    </div>
-
-                    <div className="flex gap-2 pt-4">
-                        {editingTask.id && (
-                            <button
-                                onClick={handleDelete}
-                                disabled={isSaving}
-                                className="px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-bold hover:bg-red-50 transition-colors"
-                            >
-                                Excluir
-                            </button>
-                        )}
-                        <button
-                            onClick={handleSave}
-                            disabled={isSaving}
-                            className="flex-1 bg-vblack text-white py-2.5 rounded-lg text-sm font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2"
-                        >
-                            {isSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                            {isSaving ? 'Salvando...' : 'Salvar Tarefa'}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+            <TaskFormModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSave={handleSaveDirect}
+                initialData={editingTask.id ? editingTask as Task : undefined}
+                availableProjects={clients.map(c => c.name)}
+                availableAssignees={uniqueAssignees}
+            />
 
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -338,8 +265,8 @@ export const ProjectsModule = () => {
             <div className="flex-1 overflow-hidden mt-2">
                 {viewMode === 'board' && (
                     <div className="flex gap-6 h-full overflow-x-auto pb-4 custom-scrollbar">
-                        {['todo', 'doing', 'review', 'done'].map((statusKey) => {
-                            const statusLabel = statusKey === 'todo' ? 'A Fazer' : statusKey === 'doing' ? 'Fazendo' : statusKey === 'review' ? 'Revisão' : 'Concluído';
+                        {['a_fazer', 'fazendo', 'revisao', 'concluido'].map((statusKey) => {
+                            const statusLabel = statusKey === 'a_fazer' ? 'A Fazer' : statusKey === 'fazendo' ? 'Fazendo' : statusKey === 'revisao' ? 'Revisão' : 'Concluído';
                             const colTasks = filteredTasks.filter(t => t.status === statusKey);
                             return (
                                 <KanbanColumn
