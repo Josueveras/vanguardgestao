@@ -244,6 +244,19 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                                 </div>
 
                                 <div className="space-y-1.5">
+                                    <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Dificuldade</label>
+                                    <select
+                                        value={formData.difficulty || 'media'}
+                                        onChange={e => setFormData({ ...formData, difficulty: e.target.value as any })}
+                                        className="w-full appearance-none bg-transparent text-sm font-medium text-vblack focus:ring-0 border-none p-0 cursor-pointer"
+                                    >
+                                        <option value="baixa">Baixa</option>
+                                        <option value="media">Média</option>
+                                        <option value="alta">Alta</option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-1.5">
                                     <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Prazo</label>
                                     <input
                                         type="date"

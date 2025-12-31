@@ -128,6 +128,7 @@ export interface Task {
   project: string;
   status: 'a_fazer' | 'fazendo' | 'revisao' | 'concluido';
   priority: 'baixa' | 'media' | 'alta' | 'urgente';
+  difficulty: 'baixa' | 'media' | 'alta'; // New field for sorting
   tag: 'marketing' | 'tecnologia' | 'vendas';
   assignees: string[];
   dueDate: string;

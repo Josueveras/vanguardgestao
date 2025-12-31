@@ -101,7 +101,8 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
                 dueDate: t.deadline ? t.deadline.split('T')[0] : '',
                 assignees: t.assignee_id ? ['Admin'] : [], // Basic mapping for now
                 checklist: t.checklist || [],
-                timeSpent: t.time_spent || 0
+                timeSpent: t.time_spent || 0,
+                difficulty: t.difficulty || 'media' // Default to media
             }));
 
             const mappedLeads = (leadsData || []).map(l => ({
@@ -222,6 +223,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             project: t.project,
             status: t.status,
             priority: t.priority,
+            difficulty: t.difficulty,
             deadline: t.dueDate,
             checklist: t.checklist || [],
             time_spent: t.timeSpent || 0,
@@ -241,6 +243,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             project: t.project,
             status: t.status,
             priority: t.priority,
+            difficulty: t.difficulty,
             deadline: t.dueDate,
             checklist: t.checklist,
             time_spent: t.timeSpent,

@@ -31,10 +31,22 @@ const ProjectTaskCard: React.FC<{ task: Task; onClick: (t: Task) => void }> = Re
         }
     };
 
+    const getDifficultyColor = (d: string) => {
+        switch (d) {
+            case 'alta': return 'text-red-700 bg-red-50 border border-red-100';
+            case 'media': return 'text-orange-700 bg-orange-50 border border-orange-100';
+            case 'baixa': return 'text-green-700 bg-green-50 border border-green-100';
+            default: return 'text-gray-700 bg-gray-50';
+        }
+    };
+
     return (
         <div onClick={() => onClick(task)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group hover:border-gray-300 select-none">
-            <div className="flex justify-between items-start mb-2">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${getPriorityColor(task.priority)}`}>{task.priority}</span>
+            <div className="flex justify-between items-start mb-2 gap-2">
+                <div className="flex gap-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${getPriorityColor(task.priority)}`}>{task.priority}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${getDifficultyColor(task.difficulty || 'media')}`}>{task.difficulty || 'media'}</span>
+                </div>
                 <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">{task.tag}</span>
             </div>
             <p className="text-sm font-bold text-vblack leading-snug mb-1">{task.title}</p>
@@ -143,11 +155,27 @@ export const ProjectsModule = () => {
         completedTasks: tasks.filter(t => t.status === 'done').length
     }), [tasks]);
 
-    const filteredTasks = useMemo(() => tasks.filter(t => {
-        const matchesContext = projectFilter === 'high' ? (t.priority === 'high' && t.status !== 'done') : true;
-        const matchesClient = filterClient === 'all' || t.project === filterClient;
-        return matchesContext && matchesClient;
-    }), [tasks, projectFilter, filterClient]);
+    const processedTasks = useMemo(() => {
+        let result = tasks.filter(t => {
+            const matchesContext = projectFilter === 'high' ? (t.priority === 'urgente' || t.priority === 'alta') && t.status !== 'concluido' : true;
+            const matchesClient = filterClient === 'all' || t.project === filterClient;
+            return matchesContext && matchesClient;
+        });
+
+        // Apply Smart Sort (ROI: Priority Value + Difficulty Bonus)
+        return result.sort((a, b) => {
+            // Priority Values: Higher is more urgent
+            const pVal: Record<string, number> = { urgente: 4, alta: 3, media: 2, baixa: 1 };
+            // Difficulty Values: Easier (lower diff) adds more value/speed bonus
+            // Baixa = +3 (Quick Win), Media = +2, Alta = +1 (Slow)
+            const dVal: Record<string, number> = { baixa: 3, media: 2, alta: 1 };
+
+            const scoreA = (pVal[a.priority] || 1) + (dVal[a.difficulty || 'media'] || 2);
+            const scoreB = (pVal[b.priority] || 1) + (dVal[b.difficulty || 'media'] || 2);
+
+            return scoreB - scoreA; // Descending Order
+        });
+    }, [tasks, projectFilter, filterClient]);
 
     const handleEdit = useCallback((task: Task) => {
         setEditingTask(task);
@@ -267,7 +295,7 @@ export const ProjectsModule = () => {
                     <div className="flex gap-6 h-full overflow-x-auto pb-4 custom-scrollbar">
                         {['a_fazer', 'fazendo', 'revisao', 'concluido'].map((statusKey) => {
                             const statusLabel = statusKey === 'a_fazer' ? 'A Fazer' : statusKey === 'fazendo' ? 'Fazendo' : statusKey === 'revisao' ? 'Revisão' : 'Concluído';
-                            const colTasks = filteredTasks.filter(t => t.status === statusKey);
+                            const colTasks = processedTasks.filter(t => t.status === statusKey);
                             return (
                                 <KanbanColumn
                                     key={statusKey}
