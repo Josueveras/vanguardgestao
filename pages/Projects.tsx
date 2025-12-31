@@ -258,7 +258,7 @@ export const ProjectsModule = () => {
                     <MetricCard title="Em Progresso" value={stats.activeTasks} icon={Stack} color="blue" subtext="Tarefas ativas" />
                     <MetricCard title="Alta Prioridade" value={stats.highPriorityTasks} icon={Fire} color="red" subtext="Atenção imediata" />
                     <MetricCard title="Em Revisão" value={stats.reviewTasks} icon={Eye} color="orange" subtext="Qualidade" />
-                    <MetricCard title="Concluídas" value={stats.completedTasks} icon={CheckCircle} color="Concluídas" subtext="Tarefas concluídas" />
+                    <MetricCard title="Concluídas" value={stats.completedTasks} icon={CheckCircle} color="green" subtext="Tarefas concluídas" />
                 </div>
             </div>
 
