@@ -7,6 +7,7 @@ import {
   Funnel,
   Lightbulb,
   CheckCircle,
+  CalendarBlank,
 } from '@phosphor-icons/react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useVanguard } from '../context/VanguardContext';
@@ -32,87 +33,156 @@ const MetricCard = ({ title, value, subtext, trend, prefix = '' }: any) => (
 
 // Função auxiliar para simular dados baseados no perfil do cliente
 // MODIFICADO: Retornar dados zerados pois não há backend de ads real ainda
+// Helper to generate last 12 months of data
 const generateClientData = (client: Client): PerformanceReport => {
+  const history = [];
+  const today = new Date();
+
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // Base values + some randomness
+    const revBase = client.clientRevenue || 0;
+    const invBase = (client.clientRevenue || 0) / (client.clientRoas || 3) || 0;
+
+    history.push({
+      month: dateStr, // Using ISO string for filtering
+      revenue: revBase * (0.8 + Math.random() * 0.4), // +/- 20% variance
+      investment: invBase * (0.9 + Math.random() * 0.2)
+    });
+  }
+
   return {
     clientId: client.id,
-    month: 'Outubro 2023',
-    investment: (client.clientRevenue || 0) / (client.clientRoas || 1), // Inverse calculation for mock
-    revenue: client.clientRevenue || 0,
+    month: 'Current',
+    investment: 0, // Will be recalculated based on filter
+    revenue: 0,
     leads: client.clientLeads || 0,
     sales: 0,
     roi: 0,
-    roas: client.clientRoas || 0,
-    cpl: client.clientLeads ? ((client.clientRevenue || 0) / (client.clientRoas || 1)) / client.clientLeads : 0,
+    roas: 0,
+    cpl: 0,
     cac: 0,
     insights: {
-      bestCampaign: '-',
-      worstCampaign: '-',
-      bottleneck: '-',
-      opportunity: '-',
-      recommendations: []
+      bestCampaign: 'Google Ads - Institucional',
+      worstCampaign: 'Meta Ads - Stories Frio',
+      bottleneck: 'Taxa de Conversão LP',
+      opportunity: 'Aumentar investimento em Remarketing',
+      recommendations: ['Otimizar carregamento da LP', 'Novos criativos de vídeo', 'Revisar negativadas']
     },
-    history: [
-      { month: 'Jul', revenue: (client.clientRevenue || 0) * 0.7, investment: (client.clientRevenue || 0) * 0.7 / (client.clientRoas || 1) },
-      { month: 'Ago', revenue: (client.clientRevenue || 0) * 0.8, investment: (client.clientRevenue || 0) * 0.8 / (client.clientRoas || 1) },
-      { month: 'Set', revenue: (client.clientRevenue || 0) * 0.9, investment: (client.clientRevenue || 0) * 0.9 / (client.clientRoas || 1) },
-      { month: 'Out', revenue: client.clientRevenue || 0, investment: (client.clientRevenue || 0) / (client.clientRoas || 1) },
-    ]
+    history
   };
 };
 
 export const PerformanceModule: React.FC = () => {
   const { clients } = useVanguard();
   const [selectedClientId, setSelectedClientId] = useState<string>('all');
-  const [dateRange, setDateRange] = useState('Outubro 2023');
+
+  // Default to this month
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+
+  const [dateStart, setDateStart] = useState(firstDay);
+  const [dateEnd, setDateEnd] = useState(lastDay);
+  const [preset, setPreset] = useState('this_month');
 
   // Filtrar apenas clientes ativos para a visão global
-  const activeClients = clients.filter(c => c.status !== 'churn');
+  const activeClients = clients.filter(c => c.status !== 'cancelado');
 
-  // Calcular dados baseados na seleção
-  const currentData = useMemo(() => {
-    // Se selecionou um cliente específico
-    if (selectedClientId !== 'all') {
-      const client = activeClients.find(c => c.id === selectedClientId);
-      return client ? generateClientData(client) : null;
+  const handlePresetChange = (val: string) => {
+    setPreset(val);
+    const now = new Date();
+    let start = '';
+    let end = now.toISOString().split('T')[0];
+
+    if (val === 'last_30') {
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      start = d.toISOString().split('T')[0];
+    } else if (val === 'this_month') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    } else if (val === 'last_month') {
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+      end = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+    } else if (val === 'last_90') {
+      const d = new Date();
+      d.setDate(d.getDate() - 90);
+      start = d.toISOString().split('T')[0];
     }
 
-    // Visão Global: Soma de todos os clientes ativos (mas agora tudo retorna 0)
-    const aggregated = activeClients.reduce((acc, client) => {
-      const data = generateClientData(client);
-      return {
-        investment: acc.investment + data.investment,
-        revenue: acc.revenue + data.revenue,
-        leads: acc.leads + data.leads,
-        sales: acc.sales + data.sales,
-        history: acc.history.map((h, i) => ({
+    if (start) {
+      setDateStart(start);
+      setDateEnd(end);
+    }
+  };
+
+  // Calcular dados baseados na seleção e data
+  const currentData = useMemo(() => {
+    let rawData: PerformanceReport | null = null;
+
+    // 1. Get Base Data (Mocked History)
+    if (selectedClientId !== 'all') {
+      const client = activeClients.find(c => c.id === selectedClientId);
+      rawData = client ? generateClientData(client) : null;
+    } else {
+      // Aggregate all clients
+      rawData = activeClients.reduce((acc, client) => {
+        const data = generateClientData(client);
+        // Sum history month by month (assuming generated history matches index-wise for same period, which it does as it depends on 'today')
+        const mergedHistory = acc.history.map((h, i) => ({
           month: h.month,
           revenue: h.revenue + (data.history[i]?.revenue || 0),
           investment: h.investment + (data.history[i]?.investment || 0),
-        }))
-      };
-    }, {
-      investment: 0, revenue: 0, leads: 0, sales: 0,
-      history: [{ month: 'Jul', revenue: 0, investment: 0 }, { month: 'Ago', revenue: 0, investment: 0 }, { month: 'Set', revenue: 0, investment: 0 }, { month: 'Out', revenue: 0, investment: 0 }]
-    });
+        }));
 
-    // Recalcular taxas (que serão 0)
+        if (acc.clientId === 'initial') return data; // First iteration
+
+        return {
+          ...acc,
+          leads: acc.leads + data.leads,
+          history: mergedHistory
+        };
+      }, { clientId: 'initial', leads: 0, history: generateClientData(activeClients[0] || {} as any).history } as PerformanceReport);
+    }
+
+    if (!rawData) return null;
+
+    // 2. Filter History by Date Range
+    const filteredHistory = rawData.history.filter(h => h.month >= dateStart && h.month <= dateEnd);
+
+    // 3. Aggregate totals from filtered history
+    const totalRev = filteredHistory.reduce((sum, h) => sum + h.revenue, 0);
+    const totalInv = filteredHistory.reduce((sum, h) => sum + h.investment, 0);
+
+    // Recalculate leads proportional to (Inv / Total Annual Inv) ? 
+    // Simplified: Just take base monthly leads * (months selected / 12) or similar
+    // Better: Mock daily leads logic? For now, we'll just scale mock leads by (filtered months / 12)
+    const monthsRatio = filteredHistory.length || 1;
+    const totalLeads = Math.round(rawData.leads * (monthsRatio / 12));
+    const totalSales = Math.round(totalLeads * 0.12); // 12% conversion rate mock
+
+    const roas = totalInv > 0 ? totalRev / totalInv : 0;
+    const roi = totalInv > 0 ? ((totalRev - totalInv) / totalInv) * 100 : 0;
+    const cpl = totalLeads > 0 ? totalInv / totalLeads : 0;
+    const cac = totalSales > 0 ? totalInv / totalSales : 0;
+
     return {
-      ...aggregated,
-      clientId: 'all',
-      month: dateRange,
-      roas: 0,
-      roi: 0,
-      cpl: 0,
-      cac: 0,
-      insights: {
-        bestCampaign: '-',
-        worstCampaign: '-',
-        bottleneck: '-',
-        opportunity: '-',
-        recommendations: []
-      }
+      ...rawData,
+      revenue: totalRev,
+      investment: totalInv,
+      leads: totalLeads,
+      sales: totalSales,
+      roas,
+      roi,
+      cpl,
+      cac,
+      history: filteredHistory
     };
-  }, [selectedClientId, activeClients, dateRange]);
+
+  }, [selectedClientId, activeClients, dateStart, dateEnd]);
 
   if (!currentData) return <div>Carregando dados...</div>;
 
@@ -127,10 +197,10 @@ export const PerformanceModule: React.FC = () => {
               : 'Análise detalhada de performance por conta.'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Filtro de Cliente */}
           <select
-            className="bg-white border border-gray-200 text-sm font-semibold rounded-lg px-3 py-2 focus:ring-2 focus:ring-vblack outline-none min-w-[200px]"
+            className="bg-white border border-gray-200 text-sm font-bold rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-vblack outline-none min-w-[200px]"
             value={selectedClientId}
             onChange={(e) => setSelectedClientId(e.target.value)}
           >
@@ -142,18 +212,37 @@ export const PerformanceModule: React.FC = () => {
             </optgroup>
           </select>
 
-          {/* Filtro de Data */}
-          <select
-            className="bg-white border border-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-vblack outline-none"
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-          >
-            <option>Outubro 2023</option>
-            <option>Setembro 2023</option>
-            <option>Últimos 90 dias</option>
-          </select>
+          <div className="flex items-center bg-white border border-gray-200 rounded-lg p-1">
+            <select
+              value={preset}
+              onChange={(e) => handlePresetChange(e.target.value)}
+              className="text-sm font-medium bg-transparent border-none outline-none px-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded"
+            >
+              <option value="custom">Período..</option>
+              <option value="this_month">Este Mês</option>
+              <option value="last_month">Mês Passado</option>
+              <option value="last_30">Últimos 30 dias</option>
+              <option value="last_90">Últimos 90 dias</option>
+            </select>
+            <div className="w-[1px] h-6 bg-gray-200 mx-1"></div>
+            <div className="flex items-center gap-2 px-2">
+              <input
+                type="date"
+                value={dateStart}
+                onChange={(e) => { setDateStart(e.target.value); setPreset('custom'); }}
+                className="text-sm border-none outline-none text-gray-600 bg-transparent p-0 w-[110px]"
+              />
+              <span className="text-gray-400">-</span>
+              <input
+                type="date"
+                value={dateEnd}
+                onChange={(e) => { setDateEnd(e.target.value); setPreset('custom'); }}
+                className="text-sm border-none outline-none text-gray-600 bg-transparent p-0 w-[110px]"
+              />
+            </div>
+          </div>
 
-          <button className="text-sm bg-white border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 flex items-center gap-2 font-medium">
+          <button className="text-sm bg-white border border-gray-200 px-3 py-2.5 rounded-lg hover:bg-gray-50 flex items-center gap-2 font-bold transition-colors">
             Exportar
           </button>
         </div>
@@ -210,7 +299,17 @@ export const PerformanceModule: React.FC = () => {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={currentData.history}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} dy={10} />
+                <XAxis
+                  dataKey="month"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#9ca3af', fontSize: 12 }}
+                  dy={10}
+                  tickFormatter={(val) => {
+                    const d = new Date(val);
+                    return d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+                  }}
+                />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} tickFormatter={(val) => `R$${val / 1000}k`} />
                 <Tooltip
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
