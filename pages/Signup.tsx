@@ -56,11 +56,11 @@ export const SignupModule = () => {
                 <div className="text-center mb-8">
                     <div className="inline-flex items-center gap-3 mb-2">
                         <div className="w-12 h-12 bg-vred rounded-xl flex items-center justify-center text-white font-bold text-2xl">
-                            V
+                            VG
                         </div>
-                        <span className="font-bold text-vblack text-2xl tracking-tight">Vanguarda</span>
+                        <span className="font-bold text-vblack text-2xl tracking-tight">VanguardGestão</span>
                     </div>
-                    <p className="text-sm text-gray-500 uppercase tracking-widest">Unidade de Crescimento</p>
+                    <p className="text-sm text-gray-500 uppercase tracking-widest">Unidade de Gestão</p>
                 </div>
 
                 {/* Signup Card */}

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import {
     Client, Task, Lead, Campaign, SOPItem, ContentItem,
-    PerformanceReport
+    PerformanceReport, Meeting
 } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
@@ -15,6 +15,7 @@ interface VanguardContextType {
     sops: SOPItem[];
     content: ContentItem[];
     performance: PerformanceReport | null;
+    meetings: Meeting[];
     loading: boolean;
 
     // UI State
@@ -40,6 +41,10 @@ interface VanguardContextType {
     addSOP: (item: Omit<SOPItem, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
     updateSOP: (item: SOPItem) => Promise<void>;
     deleteSOP: (id: string) => Promise<void>;
+
+    addMeeting: (item: Omit<Meeting, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+    updateMeeting: (item: Meeting) => Promise<void>;
+    deleteMeeting: (id: string) => Promise<void>;
 }
 
 const VanguardContext = createContext<VanguardContextType | undefined>(undefined);
@@ -53,6 +58,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
     const [sops, setSops] = useState<SOPItem[]>([]);
     const [content, setContent] = useState<ContentItem[]>([]);
     const [performance, setPerformance] = useState<PerformanceReport | null>(null);
+    const [meetings, setMeetings] = useState<Meeting[]>([]);
     const [loading, setLoading] = useState(true);
     const [projectFilter, setProjectFilter] = useState<'all' | 'high'>('all');
 
@@ -71,7 +77,8 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
                 { data: campaignsData },
                 { data: sopsData },
                 { data: contentData },
-                { data: perfData }
+                { data: perfData },
+                { data: meetingsData }
             ] = await Promise.all([
                 supabase.from('clients').select('*').order('created_at', { ascending: false }),
                 supabase.from('tasks').select('*').order('created_at', { ascending: false }),
@@ -79,7 +86,8 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
                 supabase.from('campaigns').select('*').order('created_at', { ascending: false }),
                 supabase.from('sop_documents').select('*').order('created_at', { ascending: false }),
                 supabase.from('content_posts').select('*').order('created_at', { ascending: false }),
-                supabase.from('performance_metrics').select('*').maybeSingle()
+                supabase.from('performance_metrics').select('*').maybeSingle(),
+                supabase.from('meetings').select('*').order('start_time', { ascending: true })
             ]);
 
             // Mappers
@@ -133,6 +141,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             setCampaigns(campaignsData || []);
             setSops(mappedSops as SOPItem[]);
             setContent(mappedContent as ContentItem[]);
+            setMeetings((meetingsData || []) as Meeting[]);
 
             if (perfData) {
                 const mappedPerformance: PerformanceReport = {
@@ -421,6 +430,41 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         if (!error) setSops(prev => prev.filter(item => item.id !== id));
     };
 
+    const addMeeting = async (m: Omit<Meeting, 'id' | 'user_id' | 'created_at'>) => {
+        const payload = {
+            title: m.title,
+            start_time: m.start_time,
+            end_time: m.end_time || null,
+            type: m.type,
+            link: m.link || null,
+            description: m.description || '',
+            user_id: user?.id
+        };
+        const { data, error } = await supabase.from('meetings').insert([payload]).select();
+        if (!error && data) {
+            const newMeeting = { ...m, id: data[0].id, created_at: data[0].created_at } as Meeting;
+            setMeetings(prev => [...prev, newMeeting].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
+        }
+    };
+
+    const updateMeeting = async (m: Meeting) => {
+        const payload = {
+            title: m.title,
+            start_time: m.start_time,
+            end_time: m.end_time || null,
+            type: m.type,
+            link: m.link || null,
+            description: m.description || ''
+        };
+        const { error } = await supabase.from('meetings').update(payload).eq('id', m.id);
+        if (!error) setMeetings(prev => prev.map(item => item.id === m.id ? m : item).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
+    };
+
+    const deleteMeeting = async (id: string) => {
+        const { error } = await supabase.from('meetings').delete().eq('id', id);
+        if (!error) setMeetings(prev => prev.filter(item => item.id !== id));
+    };
+
     return (
         <VanguardContext.Provider value={{
             clients, tasks, leads, campaigns, sops, content, performance,
@@ -429,7 +473,8 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             addTask, updateTask, deleteTask,
             addLead, updateLead, deleteLead,
             addContent, updateContent, deleteContent,
-            addSOP, updateSOP, deleteSOP
+            addSOP, updateSOP, deleteSOP,
+            meetings, addMeeting, updateMeeting, deleteMeeting
         }}>
             {children}
         </VanguardContext.Provider>

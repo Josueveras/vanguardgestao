@@ -202,3 +202,15 @@ export interface Moonshot {
   status: 'ignition' | 'orbit' | 'landing' | 'abort';
   progress: number;
 }
+
+export interface Meeting {
+  id: string;
+  title: string;
+  start_time: string; // ISO String
+  end_time?: string; // ISO String
+  type: 'Google Meet' | 'Zoom' | 'Interno' | 'Presencial' | 'Outro';
+  link?: string;
+  description?: string;
+  user_id?: string;
+  created_at?: string;
+}

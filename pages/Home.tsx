@@ -18,10 +18,12 @@ import {
   Target,
   Users,
   Kanban,
-  Files
+
+  Files,
+  Calendar
 } from '@phosphor-icons/react';
 import { Card, Button, Modal, Toast } from '../components/ui';
-import { Task, Lead, Client, SOPItem } from '../types';
+import { Task, Lead, Client, SOPItem, Meeting } from '../types';
 import { useVanguard } from '../context/VanguardContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -31,13 +33,13 @@ export const HomeModule = () => {
   const navigate = useNavigate();
 
   const {
-    clients, tasks, leads, sops, setProjectFilter,
-    addTask, addLead, addClient, addSOP, loading
+    clients, tasks, leads, sops, meetings, setProjectFilter,
+    addTask, addLead, addClient, addSOP, addMeeting, loading
   } = useVanguard();
   const { user } = useAuth();
 
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
-  const [activeModal, setActiveModal] = useState<'task' | 'lead' | 'client' | 'note' | null>(null);
+  const [activeModal, setActiveModal] = useState<'task' | 'lead' | 'client' | 'note' | 'meeting' | null>(null);
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -46,6 +48,7 @@ export const HomeModule = () => {
   const [quickLead, setQuickLead] = useState<Partial<Lead>>({ company: '', value: 0 });
   const [quickClient, setQuickClient] = useState<Partial<Client>>({ name: '', mrr: 0 });
   const [quickNote, setQuickNote] = useState({ title: '', content: '' });
+  const [quickMeeting, setQuickMeeting] = useState({ title: '', time: '', type: 'Google Meet' });
 
   // 1. Minhas Prioridades (Filtradas e Ordenadas)
   const priorities = useMemo(() => {
@@ -55,18 +58,27 @@ export const HomeModule = () => {
       .slice(0, 5);
   }, [tasks]);
 
-  // 2. Agenda de Hoje (Compromissos Reais/Mock)
-  const agenda = useMemo(() => {
-    // Current requirement: show commitments, not tasks.
-    const mockMeetings = [
-      { id: 'm1', time: '10:00', title: 'Reunião de Alinhamento - Estratégia', type: 'Google Meet', isMeeting: true },
-      { id: 'm2', time: '14:00', title: 'Briefing Novo Cliente', type: 'Google Meet', isMeeting: true },
-      { id: 'm3', time: '16:30', title: 'Review Semanal de Performance', type: 'Interno', isMeeting: true },
-      { id: 'm4', time: '17:30', title: 'Check-in Time Criativo', type: 'Interno', isMeeting: true },
-    ];
 
-    return mockMeetings;
-  }, []);
+  // 2. Agenda de Hoje (Compromissos Reais)
+  const agenda = useMemo(() => {
+    const isToday = (dateString: string) => {
+      const d = new Date(dateString);
+      const now = new Date();
+      return d.getDate() === now.getDate() &&
+        d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear();
+    };
+
+    return meetings
+      .filter(m => isToday(m.start_time))
+      .map(m => ({
+        id: m.id,
+        time: new Date(m.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        title: m.title,
+        type: m.type,
+        isMeeting: true
+      }));
+  }, [meetings]);
 
   const [showAllAgenda, setShowAllAgenda] = useState(false);
   const displayedAgenda = showAllAgenda ? agenda : agenda.slice(0, 3);
@@ -191,6 +203,30 @@ export const HomeModule = () => {
     }
   };
 
+  const handleSaveQuickMeeting = async () => {
+    if (!quickMeeting.title || !quickMeeting.time) return;
+    setIsSaving(true);
+    try {
+      const today = new Date();
+      const [hours, minutes] = quickMeeting.time.split(':').map(Number);
+      const meetingDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+
+      await addMeeting({
+        title: quickMeeting.title,
+        start_time: meetingDate.toISOString(),
+        type: quickMeeting.type as any,
+        description: 'Agendado via Home'
+      });
+      setToast({ msg: 'Compromisso agendado!', type: 'success' });
+      setActiveModal(null);
+      setQuickMeeting({ title: '', time: '', type: 'Google Meet' });
+    } catch (e) {
+      setToast({ msg: 'Erro ao agendar compromisso', type: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleDailyMeet = () => {
     window.open('https://meet.google.com/new', '_blank');
   };
@@ -208,9 +244,10 @@ export const HomeModule = () => {
   // KPIs Calculados - Memoized
   const kpis = useMemo(() => {
     const totalMRR = clients.reduce((acc, client) => acc + (Number(client.mrr) || 0), 0);
+    const activeClientsCount = clients.filter(c => c.status !== 'cancelado').length;
     const totalLeads = leads.length;
 
-    const calculateEvolution = (items: any[]) => {
+    const calculateMetrics = (items: any[]) => {
       const now = new Date();
       const thisMonth = now.getMonth();
       const thisYear = now.getFullYear();
@@ -228,26 +265,25 @@ export const HomeModule = () => {
         return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
       }).length;
 
-      if (previousItems === 0) return { change: '0%', trend: 'neutral' as const };
+      if (previousItems === 0) return { change: '0%', trend: 'neutral' as const, count: currentItems };
       const change = ((currentItems - previousItems) / previousItems) * 100;
       return {
         change: `${Math.abs(Math.round(change))}%`,
-        trend: change >= 0 ? 'up' as const : 'down' as const
+        trend: change >= 0 ? 'up' as const : 'down' as const,
+        count: currentItems
       };
     };
 
-    const mrrEvolution = calculateEvolution(clients);
-    const leadsEvolution = calculateEvolution(leads);
-    const projectsEvolution = calculateEvolution(tasks);
-    const sopsEvolution = calculateEvolution(sops);
+    const clientMetrics = calculateMetrics(clients);
+    const leadMetrics = calculateMetrics(leads);
 
     return [
-      { label: 'MRR ATIVO', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalMRR), change: mrrEvolution.change, trend: mrrEvolution.trend, icon: ChartLineUp, target: 'CLIENTS' as const },
-      { label: 'LEADS NO PIPELINE', value: totalLeads.toString(), change: leadsEvolution.change, trend: leadsEvolution.trend, icon: Users, target: 'CRM' as const },
-      { label: 'PROJETOS ATIVOS', value: tasks.filter(t => t.status === 'fazendo').length.toString(), change: projectsEvolution.change, trend: projectsEvolution.trend, icon: Kanban, target: 'PROJECTS' as const },
-      { label: 'SOPs & PLAYBOOKS', value: sops.length.toString(), change: sopsEvolution.change, trend: sopsEvolution.trend, icon: Files, target: 'SOP' as const },
+      { label: 'MRR ATIVO', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalMRR), change: clientMetrics.change, trend: clientMetrics.trend, icon: ChartLineUp, target: 'CLIENTS' as const },
+      { label: 'CLIENTES ATIVOS', value: activeClientsCount.toString(), change: clientMetrics.change, trend: clientMetrics.trend, icon: Users, target: 'CLIENTS' as const },
+      { label: 'LEADS NO PIPELINE', value: totalLeads.toString(), change: leadMetrics.change, trend: leadMetrics.trend, icon: Funnel, target: 'CRM' as const },
+      { label: 'NOVOS CLIENTES', value: `+${clientMetrics.count}`, change: clientMetrics.change, trend: clientMetrics.trend, icon: UserPlus, target: 'CLIENTS' as const },
     ];
-  }, [clients, leads, tasks, sops]);
+  }, [clients, leads]);
 
 
   const greeting = useMemo(() => {
@@ -314,6 +350,22 @@ export const HomeModule = () => {
         </div>
       </Modal>
 
+      <Modal isOpen={activeModal === 'meeting'} onClose={() => setActiveModal(null)} title="Novo Compromisso" size="sm">
+        <div className="p-6 space-y-4">
+          <input className="w-full border p-2 rounded text-sm" placeholder="Título do Compromisso" value={quickMeeting.title} onChange={e => setQuickMeeting({ ...quickMeeting, title: e.target.value })} autoFocus />
+          <input type="time" className="w-full border p-2 rounded text-sm" value={quickMeeting.time} onChange={e => setQuickMeeting({ ...quickMeeting, time: e.target.value })} />
+          <select className="w-full border p-2 rounded text-sm bg-white" value={quickMeeting.type} onChange={e => setQuickMeeting({ ...quickMeeting, type: e.target.value })}>
+            <option value="Google Meet">Google Meet</option>
+            <option value="Interno">Interno</option>
+            <option value="Zoom">Zoom</option>
+            <option value="Presencial">Presencial</option>
+          </select>
+          <Button onClick={handleSaveQuickMeeting} className="w-full" disabled={isSaving}>
+            {isSaving ? 'Agendando...' : 'Agendar'}
+          </Button>
+        </div>
+      </Modal>
+
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center gap-4">
@@ -352,6 +404,9 @@ export const HomeModule = () => {
                     <button onClick={() => { setActiveModal('client'); setIsActionMenuOpen(false); }} className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-vblack flex items-center gap-2" >
                       <UserPlus size={16} className="text-green-500" /> Novo Cliente
                     </button>
+                    <button onClick={() => { setActiveModal('meeting'); setIsActionMenuOpen(false); }} className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-vblack flex items-center gap-2" >
+                      <Calendar size={16} className="text-purple-500" /> Nova Reunião
+                    </button>
                     <div className="h-px bg-gray-100 my-1"></div>
                     <button onClick={() => { setActiveModal('note'); setIsActionMenuOpen(false); }} className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-vblack flex items-center gap-2">
                       <Note size={16} className="text-gray-400" /> Nova Nota
@@ -379,11 +434,11 @@ export const HomeModule = () => {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-vblack tracking-tight">{kpi.value}</div>
-                  <div className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-xs font-bold ${kpi.trend === 'up'
-                    ? 'bg-green-50 text-green-700'
-                    : 'bg-red-50 text-red-700'
+                  <div className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-xs font-bold ${kpi.trend === 'up' ? 'bg-green-50 text-green-700' :
+                      kpi.trend === 'down' ? 'bg-red-50 text-red-700' :
+                        'bg-gray-100 text-gray-600'
                     }`}>
-                    {kpi.trend === 'up' ? <TrendUp weight="bold" /> : <TrendDown weight="bold" />}
+                    {kpi.trend === 'up' ? <TrendUp weight="bold" /> : kpi.trend === 'down' ? <TrendDown weight="bold" /> : <div className="w-2 h-0.5 bg-gray-400 rounded-full" />}
                     {kpi.change}
                   </div>
                 </div>
