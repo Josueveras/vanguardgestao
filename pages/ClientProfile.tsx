@@ -326,7 +326,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                                 <KPICard label="Receita (Mês)" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(client.clientRevenue || 0)} icon={CurrencyDollar} bgClass="bg-green-50" colorClass="text-green-600" />
                                 <KPICard label="ROAS (Mês)" value={`${client.clientRoas || 0}x`} icon={TrendUp} bgClass="bg-purple-50" colorClass="text-purple-600" />
                                 <KPICard label="Leads" value={(client.clientLeads || 0).toString()} icon={Users} bgClass="bg-blue-50" colorClass="text-blue-600" />
-                                <KPICard label="Tasks Abertas" value={clientTasks.filter(t => t.status !== 'done').length} icon={CheckCircle} bgClass="bg-orange-50" colorClass="text-orange-600" />
+                                <KPICard label="Tasks Abertas" value={clientTasks.filter(t => t.status !== 'concluido').length} icon={CheckCircle} bgClass="bg-orange-50" colorClass="text-orange-600" />
                             </div>
 
                             {/* Metrics Edit Section (Conditional) */}
@@ -551,7 +551,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                             {clientTasks.map(task => (
                                 <div key={task.id} className="bg-white p-4 rounded-xl border border-gray-200 flex items-center justify-between shadow-sm">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-2 h-2 rounded-full ${task.priority === 'high' ? 'bg-red-500' : 'bg-blue-400'}`}></div>
+                                        <div className={`w-2 h-2 rounded-full ${task.priority === 'alta' ? 'bg-red-500' : 'bg-blue-400'}`}></div>
                                         <div>
                                             <h4 className="font-bold text-gray-900">{task.title}</h4>
                                             <p className="text-xs text-gray-500">Status: {task.status}</p>
@@ -593,7 +593,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                         <div>
                             <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2"><ImageSquare size={24} className="text-purple-600" weight="fill" /> Criativos em Veiculação</h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                                {clientContent.filter(p => p.status === 'published').map(post => (
+                                {clientContent.filter(p => p.status === 'publicado').map(post => (
                                     <div key={post.id} className="relative group aspect-square bg-gray-100 rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-lg transition-all">
                                         {post.creativeUrl ? (
                                             <img src={post.creativeUrl} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500" />

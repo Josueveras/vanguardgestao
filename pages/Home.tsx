@@ -42,7 +42,7 @@ export const HomeModule = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   // Quick Action States
-  const [quickTask, setQuickTask] = useState<Partial<Task>>({ title: '', priority: 'medium', project: '' });
+  const [quickTask, setQuickTask] = useState<Partial<Task>>({ title: '', priority: 'media', project: '' });
   const [quickLead, setQuickLead] = useState<Partial<Lead>>({ company: '', value: 0 });
   const [quickClient, setQuickClient] = useState<Partial<Client>>({ name: '', mrr: 0 });
   const [quickNote, setQuickNote] = useState({ title: '', content: '' });
@@ -50,7 +50,7 @@ export const HomeModule = () => {
   // 1. Minhas Prioridades (Filtradas e Ordenadas)
   const priorities = useMemo(() => {
     return tasks
-      .filter(t => t.priority === 'high' && t.status !== 'done')
+      .filter(t => t.priority === 'alta' && t.status !== 'concluido')
       .sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1))
       .slice(0, 5);
   }, [tasks]);
@@ -78,7 +78,7 @@ export const HomeModule = () => {
       id: t.id,
       type: 'task',
       title: t.title,
-      meta: t.status === 'done' ? 'Concluída' : 'Nova Tarefa',
+      meta: t.status === 'concluido' ? 'Concluída' : 'Nova Tarefa',
       user: (t.assignees && t.assignees.length > 0) ? t.assignees[0] : 'Admin',
       color: 'blue'
     }));
@@ -109,14 +109,14 @@ export const HomeModule = () => {
         title: quickTask.title,
         priority: quickTask.priority as any,
         project: quickTask.project,
-        status: 'todo',
+        status: 'a_fazer',
         assignees: ['Admin'],
         dueDate: new Date().toISOString().split('T')[0],
         tag: 'marketing'
       } as unknown as Omit<Task, 'id' | 'user_id' | 'created_at'>);
       setToast({ msg: 'Tarefa criada com sucesso!', type: 'success' });
       setActiveModal(null);
-      setQuickTask({ title: '', priority: 'medium', project: '' });
+      setQuickTask({ title: '', priority: 'media', project: '' });
     } catch (e) {
       setToast({ msg: 'Erro ao criar tarefa', type: 'error' });
     } finally {
@@ -244,7 +244,7 @@ export const HomeModule = () => {
     return [
       { label: 'MRR ATIVO', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalMRR), change: mrrEvolution.change, trend: mrrEvolution.trend, icon: ChartLineUp, target: 'CLIENTS' as const },
       { label: 'LEADS NO PIPELINE', value: totalLeads.toString(), change: leadsEvolution.change, trend: leadsEvolution.trend, icon: Users, target: 'CRM' as const },
-      { label: 'PROJETOS ATIVOS', value: tasks.filter(t => t.status === 'doing').length.toString(), change: projectsEvolution.change, trend: projectsEvolution.trend, icon: Kanban, target: 'PROJECTS' as const },
+      { label: 'PROJETOS ATIVOS', value: tasks.filter(t => t.status === 'fazendo').length.toString(), change: projectsEvolution.change, trend: projectsEvolution.trend, icon: Kanban, target: 'PROJECTS' as const },
       { label: 'SOPs & PLAYBOOKS', value: sops.length.toString(), change: sopsEvolution.change, trend: sopsEvolution.trend, icon: Files, target: 'SOP' as const },
     ];
   }, [clients, leads, tasks, sops]);
@@ -270,9 +270,9 @@ export const HomeModule = () => {
         <div className="p-6 space-y-4">
           <input className="w-full border p-2 rounded text-sm" placeholder="O que precisa ser feito?" value={quickTask.title} onChange={e => setQuickTask({ ...quickTask, title: e.target.value })} autoFocus />
           <select className="w-full border p-2 rounded text-sm bg-white" value={quickTask.priority} onChange={e => setQuickTask({ ...quickTask, priority: e.target.value as Task['priority'] })}>
-            <option value="medium">Prioridade Média</option>
-            <option value="high">Alta Prioridade</option>
-            <option value="low">Baixa Prioridade</option>
+            <option value="media">Prioridade Média</option>
+            <option value="alta">Alta Prioridade</option>
+            <option value="baixa">Baixa Prioridade</option>
           </select>
           <select className="w-full border p-2 rounded text-sm bg-white" value={quickTask.project} onChange={e => setQuickTask({ ...quickTask, project: e.target.value })}>
             <option value="">Vincular a Cliente (Opcional)</option>

@@ -19,7 +19,7 @@ import {
 } from '@phosphor-icons/react';
 import { useVanguard } from '../context/VanguardContext';
 
-const LeadCard: React.FC<{ lead: Lead; onClick: (l: Lead) => void }> = React.memo(({ lead, onClick }) => {
+const LeadCard: React.FC<{ lead: Lead; onClick: (l: Lead) => void; onDragStart: (e: React.DragEvent, lead: Lead) => void }> = React.memo(({ lead, onClick, onDragStart }) => {
   const getProgressWidth = (stage: Lead['stage']) => {
     switch (stage) {
       case 'prospect': return '20%';
@@ -32,7 +32,12 @@ const LeadCard: React.FC<{ lead: Lead; onClick: (l: Lead) => void }> = React.mem
   };
 
   return (
-    <div onClick={() => onClick(lead)} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer group relative select-none">
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, lead)}
+      onClick={() => onClick(lead)}
+      className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing group relative select-none"
+    >
       {lead.leadScore !== undefined && (
         <div className={`absolute top-2 right-2 text-[8px] font-bold px-1.5 py-0.5 rounded ${lead.leadScore > 70 ? 'bg-green-100 text-green-700' : lead.leadScore > 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
           {lead.leadScore}
@@ -73,8 +78,21 @@ const LeadCard: React.FC<{ lead: Lead; onClick: (l: Lead) => void }> = React.mem
   );
 }, (prev, next) => prev.lead === next.lead);
 
-const KanbanColumn: React.FC<{ title: string; leads: Lead[]; count: number; color: string; onLeadClick: (l: Lead) => void }> = React.memo(({ title, leads, count, color, onLeadClick }) => (
-  <div className="flex flex-col min-w-[280px] w-full lg:w-1/5 h-full bg-gray-50/50 rounded-xl px-2 py-3 border border-transparent hover:border-gray-100 transition-colors">
+const KanbanColumn: React.FC<{
+  title: string;
+  leads: Lead[];
+  count: number;
+  color: string;
+  onLeadClick: (l: Lead) => void;
+  onDragStart: (e: React.DragEvent, lead: Lead) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+}> = React.memo(({ title, leads, count, color, onLeadClick, onDragStart, onDragOver, onDrop }) => (
+  <div
+    className="flex flex-col min-w-[280px] w-full lg:w-1/5 h-full bg-gray-50/50 rounded-xl px-2 py-3 border border-transparent hover:border-gray-100 transition-colors"
+    onDragOver={onDragOver}
+    onDrop={onDrop}
+  >
     <div className="flex justify-between items-center mb-4 px-2">
       <div className="flex items-center gap-2">
         <div className={`w-2 h-2 rounded-full ${color}`}></div>
@@ -85,7 +103,7 @@ const KanbanColumn: React.FC<{ title: string; leads: Lead[]; count: number; colo
 
     <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar pb-10">
       {leads.map((lead) => (
-        <LeadCard key={lead.id} lead={lead} onClick={onLeadClick} />
+        <LeadCard key={lead.id} lead={lead} onClick={onLeadClick} onDragStart={onDragStart} />
       ))}
       {leads.length === 0 && (
         <div className="h-32 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-gray-300 gap-2">
@@ -295,6 +313,7 @@ export const CRMModule: React.FC = () => {
   const [editingLead, setEditingLead] = useState<Partial<Lead>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
+  const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
 
   const stages: { key: Lead['stage']; label: string; color: string }[] = useMemo(() => [
     { key: 'prospect', label: 'Prospect', color: 'bg-gray-400' },
@@ -334,6 +353,33 @@ export const CRMModule: React.FC = () => {
       setToast({ msg: 'Erro ao salvar lead', type: 'error' });
     }
   }, [editingLead.id, updateLead, addLead]);
+
+  const handleDragStart = useCallback((e: React.DragEvent, lead: Lead) => {
+    console.log('Drag Start:', lead.id);
+    setDraggedLead(lead);
+    e.dataTransfer.effectAllowed = "move";
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent, newStage: Lead['stage']) => {
+    e.preventDefault();
+    console.log('Drop event on stage:', newStage, 'Dragging:', draggedLead?.id);
+    if (!draggedLead || draggedLead.stage === newStage) return;
+
+    try {
+      const updatedLead = { ...draggedLead, stage: newStage };
+      await updateLead(updatedLead);
+      setToast({ msg: `Lead movido para ${newStage}`, type: 'success' });
+    } catch (err) {
+      setToast({ msg: 'Erro ao mover lead', type: 'error' });
+    } finally {
+      setDraggedLead(null);
+    }
+  }, [draggedLead, updateLead]);
 
   const stats = useMemo(() => {
     const totalPipeline = leads.reduce((acc, curr) => acc + curr.value, 0);
@@ -402,7 +448,19 @@ export const CRMModule: React.FC = () => {
         <div className="flex gap-4 h-full min-w-[1200px]">
           {stages.map((stage) => {
             const stageLeads = filteredLeads.filter(l => l.stage === stage.key);
-            return <KanbanColumn key={stage.key} title={stage.label} leads={stageLeads} count={stageLeads.length} color={stage.color} onLeadClick={handleLeadClick} />;
+            return (
+              <KanbanColumn
+                key={stage.key}
+                title={stage.label}
+                leads={stageLeads}
+                count={stageLeads.length}
+                color={stage.color}
+                onLeadClick={handleLeadClick}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, stage.key)}
+              />
+            );
           })}
         </div>
       </div>

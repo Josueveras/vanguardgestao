@@ -149,10 +149,10 @@ export const ProjectsModule = () => {
 
 
     const stats = useMemo(() => ({
-        activeTasks: tasks.filter(t => t.status === 'todo' || t.status === 'doing').length,
-        highPriorityTasks: tasks.filter(t => t.priority === 'high' && t.status !== 'done').length,
-        reviewTasks: tasks.filter(t => t.status === 'review').length,
-        completedTasks: tasks.filter(t => t.status === 'done').length
+        activeTasks: tasks.filter(t => t.status === 'a_fazer' || t.status === 'fazendo').length,
+        highPriorityTasks: tasks.filter(t => t.priority === 'alta' && t.status !== 'concluido').length,
+        reviewTasks: tasks.filter(t => t.status === 'revisao').length,
+        completedTasks: tasks.filter(t => t.status === 'concluido').length
     }), [tasks]);
 
     const processedTasks = useMemo(() => {
