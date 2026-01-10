@@ -21,6 +21,7 @@ const SettingsModule = React.lazy(() => import('./pages/Settings').then(module =
 
 const App: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  const [isMobileOpen, setIsMobileOpen] = React.useState(false);
 
   return (
     <AuthProvider>
@@ -38,10 +39,15 @@ const App: React.FC = () => {
                 element={
                   <ProtectedRoute>
                     <div className="flex h-screen overflow-hidden bg-vgray">
-                      <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
-                      <div className={`flex-1 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'} flex flex-col h-screen overflow-hidden transition-all duration-300 bg-vgray`}>
-                        <TopBar />
-                        <main className="flex-1 overflow-auto custom-scrollbar transition-colors duration-500 p-8 bg-vgray">
+                      <Sidebar
+                        isCollapsed={isSidebarCollapsed}
+                        setIsCollapsed={setIsSidebarCollapsed}
+                        isMobileOpen={isMobileOpen}
+                        setIsMobileOpen={setIsMobileOpen}
+                      />
+                      <div className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 bg-vgray ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+                        <TopBar onMenuClick={() => setIsMobileOpen(true)} />
+                        <main className="flex-1 overflow-auto custom-scrollbar transition-colors duration-500 p-4 lg:p-8 bg-vgray">
                           <div className="max-w-7xl mx-auto animate-fadeIn">
                             <Routes>
                               <Route path="/" element={<HomeModule />} />

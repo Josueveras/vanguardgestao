@@ -70,6 +70,10 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
 
         setLoading(true);
         try {
+            // ⚠️ WARNING: SCALABILITY RISK
+            // This fetch logic loads ALL data at once. This will cause performance issues as the database grows.
+            // TODO: Refactor to usage-based fetching (React Query) and implement pagination/infinite scroll.
+            // DO NOT increase this limit without understanding the browser memory impact.
             const [
                 { data: clientsData },
                 { data: tasksData },
@@ -80,14 +84,14 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
                 { data: perfData },
                 { data: meetingsData }
             ] = await Promise.all([
-                supabase.from('clients').select('*').order('created_at', { ascending: false }),
-                supabase.from('tasks').select('*').order('created_at', { ascending: false }),
-                supabase.from('leads').select('*').order('created_at', { ascending: false }),
-                supabase.from('campaigns').select('*').order('created_at', { ascending: false }),
-                supabase.from('sop_documents').select('*').order('created_at', { ascending: false }),
-                supabase.from('content_posts').select('*').order('created_at', { ascending: false }),
+                supabase.from('clients').select('*').order('created_at', { ascending: false }).limit(100),
+                supabase.from('tasks').select('*').order('created_at', { ascending: false }).limit(100),
+                supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(100),
+                supabase.from('campaigns').select('*').order('created_at', { ascending: false }).limit(50),
+                supabase.from('sop_documents').select('*').order('created_at', { ascending: false }).limit(50),
+                supabase.from('content_posts').select('*').order('created_at', { ascending: false }).limit(50),
                 supabase.from('performance_metrics').select('*').maybeSingle(),
-                supabase.from('meetings').select('*').order('start_time', { ascending: true })
+                supabase.from('meetings').select('*').order('start_time', { ascending: true }).limit(50)
             ]);
 
             // Mappers

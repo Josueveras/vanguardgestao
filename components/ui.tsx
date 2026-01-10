@@ -68,22 +68,34 @@ export const SectionHeader = ({ title, description }: { title: string, descripti
   </div>
 );
 
-export const InputField = ({ label, value, type = "text", placeholder = "", onChange, className = "" }: any) => (
+
+interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+}
+
+export const InputField: React.FC<InputFieldProps> = ({ label, className = "", ...props }) => (
   <div className={`mb-4 ${className}`}>
     <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">{label}</label>
     <input
-      type={type}
       className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-black/5 outline-none bg-gray-50 focus:bg-white transition-colors"
-      value={value}
-      placeholder={placeholder}
-      onChange={onChange}
+      {...props}
     />
   </div>
 );
 
 // --- Visualization Components ---
 
-export const MetricCard = ({ title, value, subtext, trend, icon: Icon, color = 'blue', prefix = '' }: any) => {
+interface MetricCardProps {
+  title: string;
+  value: string | number;
+  subtext?: string;
+  trend?: string | 'up' | 'down' | 'neutral';
+  icon?: React.ElementType;
+  color?: 'blue' | 'red' | 'orange' | 'green' | 'purple' | 'gray';
+  prefix?: string;
+}
+
+export const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtext, trend, icon: Icon, color = 'blue', prefix = '' }) => {
   const colors: Record<string, string> = {
     blue: 'bg-blue-50 text-blue-600',
     red: 'bg-red-50 text-red-600',
@@ -112,9 +124,9 @@ export const MetricCard = ({ title, value, subtext, trend, icon: Icon, color = '
         {trend ? (
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded ${trend === 'neutral' ? 'bg-gray-100 text-gray-600' :
-                trend.includes('+') || trend === 'up' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+              (typeof trend === 'string' && (trend.includes('+') || trend === 'up')) ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
               }`}>
-              {trend.includes('+') || trend === 'up' ? <TrendUp weight="bold" className="mr-1" /> : <TrendDown weight="bold" className="mr-1" />}
+              {(typeof trend === 'string' && (trend.includes('+') || trend === 'up')) ? <TrendUp weight="bold" className="mr-1" /> : <TrendDown weight="bold" className="mr-1" />}
               {trend === 'up' || trend === 'down' ? '' : trend}
             </span>
             <span className="text-xs text-gray-400">{subtext}</span>

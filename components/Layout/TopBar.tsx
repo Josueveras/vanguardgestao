@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { MagnifyingGlass, Bell, SignOut, CaretDown } from '@phosphor-icons/react';
+import { MagnifyingGlass, Bell, SignOut, CaretDown, List } from '@phosphor-icons/react';
 import { useAuth } from '../../context/AuthContext';
 
-export const TopBar: React.FC = () => {
+interface TopBarProps {
+  onMenuClick?: () => void;
+}
+
+export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const { user, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -14,9 +18,17 @@ export const TopBar: React.FC = () => {
   const userInitials = (user?.user_metadata?.full_name || user?.email || 'AD').substring(0, 2).toUpperCase();
 
   return (
-    <header className="h-16 flex items-center justify-between px-6 sticky top-0 z-10 transition-colors duration-500 bg-white/80 border-b border-gray-100 backdrop-blur-md">
-      <div className="flex items-center gap-4 w-96">
-        <div className="relative w-full group">
+    <header className="h-16 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-10 transition-colors duration-500 bg-white/80 border-b border-gray-100 backdrop-blur-md">
+      <div className="flex items-center gap-4 w-full lg:w-96">
+        {/* Mobile Menu Button */}
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden p-2 -ml-2 text-gray-500 hover:text-vblack"
+        >
+          <List size={24} />
+        </button>
+
+        <div className="relative w-full group hidden md:block">
           <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-vred" size={16} />
           <input
             type="text"
