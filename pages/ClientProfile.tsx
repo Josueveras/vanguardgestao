@@ -8,6 +8,7 @@ import {
     CircleNotch, ListChecks, Megaphone, MonitorPlay, ImageSquare, X, Play
 } from '@phosphor-icons/react';
 import { Toast, Modal } from '../components/ui';
+import { CampaignFormModal } from '../components/CampaignFormModal';
 
 // --- Sub-components (Memoized) ---
 
@@ -122,7 +123,6 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
 
     // Campaign State
     const [newCampaignModalOpen, setNewCampaignModalOpen] = useState(false);
-    const [newCampaignData, setNewCampaignData] = useState<Partial<Campaign>>({ status: 'Ativa' });
 
     // Snapshot Edit State
     const [isEditingSnapshot, setIsEditingSnapshot] = useState(false);
@@ -202,18 +202,9 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
         setToast({ msg: 'Link removido.', type: 'success' });
     };
 
-    const handleAddCampaign = async () => {
-        if (!newCampaignData.name || !newCampaignData.platform) return;
-        await onAddCampaign({
-            ...newCampaignData,
-            clientId: client.id,
-            spend: Number(newCampaignData.spend) || 0,
-            roas: Number(newCampaignData.roas) || 0,
-            ctr: Number(newCampaignData.ctr) || 0,
-            cpa: Number(newCampaignData.cpa) || 0,
-        } as any);
+    const handleAddCampaign = async (campaignData: Omit<Campaign, 'id' | 'user_id' | 'created_at'>) => {
+        await onAddCampaign(campaignData);
         setNewCampaignModalOpen(false);
-        setNewCampaignData({ status: 'Ativa' });
         setToast({ msg: 'Campanha criada!', type: 'success' });
     };
 
@@ -271,27 +262,12 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                 </div>
             </Modal>
 
-            <Modal isOpen={newCampaignModalOpen} onClose={() => setNewCampaignModalOpen(false)} title="Nova Campanha" size="sm">
-                <div className="p-6 space-y-4">
-                    <input className="w-full border p-3 rounded-lg text-sm" placeholder="Nome da Campanha" value={newCampaignData.name || ''} onChange={e => setNewCampaignData({ ...newCampaignData, name: e.target.value })} />
-                    <select className="w-full border p-3 rounded-lg text-sm bg-white" value={newCampaignData.platform || ''} onChange={e => setNewCampaignData({ ...newCampaignData, platform: e.target.value as any })}>
-                        <option value="">Selecione a Plataforma...</option>
-                        <option value="Google Ads">Google Ads</option>
-                        <option value="Meta Ads">Meta Ads</option>
-                        <option value="TikTok Ads">TikTok Ads</option>
-                        <option value="LinkedIn Ads">LinkedIn Ads</option>
-                    </select>
-                    <div className="grid grid-cols-2 gap-4">
-                        <input type="number" className="w-full border p-3 rounded-lg text-sm" placeholder="Investimento (R$)" value={newCampaignData.spend || ''} onChange={e => setNewCampaignData({ ...newCampaignData, spend: Number(e.target.value) })} />
-                        <input type="number" className="w-full border p-3 rounded-lg text-sm" placeholder="ROAS (Ex: 5.2)" value={newCampaignData.roas || ''} onChange={e => setNewCampaignData({ ...newCampaignData, roas: Number(e.target.value) })} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <input type="number" className="w-full border p-3 rounded-lg text-sm" placeholder="CTR (%)" value={newCampaignData.ctr || ''} onChange={e => setNewCampaignData({ ...newCampaignData, ctr: Number(e.target.value) })} />
-                        <input type="number" className="w-full border p-3 rounded-lg text-sm" placeholder="CPA (R$)" value={newCampaignData.cpa || ''} onChange={e => setNewCampaignData({ ...newCampaignData, cpa: Number(e.target.value) })} />
-                    </div>
-                    <button onClick={handleAddCampaign} className="w-full bg-vblack text-white py-3 rounded-lg font-bold hover:bg-gray-800">Criar Campanha</button>
-                </div>
-            </Modal>
+            <CampaignFormModal
+                isOpen={newCampaignModalOpen}
+                onClose={() => setNewCampaignModalOpen(false)}
+                onSave={handleAddCampaign}
+                clientId={client.id}
+            />
 
             {/* Header (War Room Style) */}
             <div className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm px-6 py-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
