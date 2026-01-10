@@ -42,6 +42,8 @@ interface VanguardContextType {
     updateSOP: (item: SOPItem) => Promise<void>;
     deleteSOP: (id: string) => Promise<void>;
 
+    addCampaign: (item: Omit<Campaign, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+
     addMeeting: (item: Omit<Meeting, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
     updateMeeting: (item: Meeting) => Promise<void>;
     deleteMeeting: (id: string) => Promise<void>;
@@ -434,6 +436,27 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         if (!error) setSops(prev => prev.filter(item => item.id !== id));
     };
 
+    const addCampaign = async (c: Omit<Campaign, 'id' | 'user_id' | 'created_at'>) => {
+        const payload = {
+            name: c.name,
+            client_id: c.clientId,
+            platform: c.platform,
+            status: c.status,
+            spend: c.spend || 0,
+            roas: c.roas || 0,
+            ctr: c.ctr || 0,
+            cpa: c.cpa || 0,
+            user_id: user?.id
+        };
+        const { data, error } = await supabase.from('campaigns').insert([payload]).select();
+        if (!error && data) {
+            const newCampaign = { ...c, id: data[0].id, created_at: data[0].created_at } as Campaign;
+            setCampaigns(prev => [newCampaign, ...prev]);
+        } else if (error) {
+            console.error('[VANGUARD ERROR] addCampaign:', error);
+        }
+    };
+
     const addMeeting = async (m: Omit<Meeting, 'id' | 'user_id' | 'created_at'>) => {
         const payload = {
             title: m.title,
@@ -478,6 +501,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             addLead, updateLead, deleteLead,
             addContent, updateContent, deleteContent,
             addSOP, updateSOP, deleteSOP,
+            addCampaign,
             meetings, addMeeting, updateMeeting, deleteMeeting
         }}>
             {children}

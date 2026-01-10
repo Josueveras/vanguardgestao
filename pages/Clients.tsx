@@ -139,7 +139,7 @@ const ClientCard: React.FC<{ client: Client; onClick: () => void; onEdit: (e: Re
 };
 
 export const ClientsModule: React.FC = () => {
-  const { clients, tasks, content, campaigns, updateClient, addClient, loading } = useVanguard();
+  const { clients, tasks, content, campaigns, updateClient, addClient, addCampaign, loading } = useVanguard();
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filter, setFilter] = useState<'all' | 'ativo' | 'onboarding' | 'em_risco'>('all');
@@ -230,6 +230,7 @@ export const ClientsModule: React.FC = () => {
         tasks={tasks}
         content={content}
         campaigns={campaigns}
+        onAddCampaign={addCampaign}
       />
     );
   }

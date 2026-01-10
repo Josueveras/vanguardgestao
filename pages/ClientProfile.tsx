@@ -5,7 +5,7 @@ import {
     ArrowLeft, Target, Strategy, CheckCircle, ChartLineUp, Link as LinkIcon,
     CalendarCheck, Check, PencilSimple, Plus, Trash, ArrowSquareOut,
     TrendUp, CurrencyDollar, Users, RocketLaunch, MagicWand, Files, FloppyDisk,
-    CircleNotch, ListChecks, Megaphone, MonitorPlay, ImageSquare, X
+    CircleNotch, ListChecks, Megaphone, MonitorPlay, ImageSquare, X, Play
 } from '@phosphor-icons/react';
 import { Toast, Modal } from '../components/ui';
 
@@ -105,9 +105,10 @@ interface ClientProfileProps {
     tasks: Task[];
     content: ContentItem[];
     campaigns: Campaign[];
+    onAddCampaign: (c: Omit<Campaign, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
 }
 
-export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, onUpdateClient, tasks, content, campaigns }) => {
+export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, onUpdateClient, tasks, content, campaigns, onAddCampaign }) => {
     const [activeTab, setActiveTab] = useState<'overview' | 'strategy' | 'operation' | 'tasks' | 'campaigns' | 'performance' | 'links'>('overview');
     const [isEditingStrategy, setIsEditingStrategy] = useState(false);
     const [localStrategy, setLocalStrategy] = useState<ClientStrategy>(client.strategy || {});
@@ -118,6 +119,10 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
     // Links State
     const [newLinkModalOpen, setNewLinkModalOpen] = useState(false);
     const [newLinkData, setNewLinkData] = useState<Partial<ClientLink>>({ category: 'Outros' });
+
+    // Campaign State
+    const [newCampaignModalOpen, setNewCampaignModalOpen] = useState(false);
+    const [newCampaignData, setNewCampaignData] = useState<Partial<Campaign>>({ status: 'Ativa' });
 
     // Snapshot Edit State
     const [isEditingSnapshot, setIsEditingSnapshot] = useState(false);
@@ -197,6 +202,21 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
         setToast({ msg: 'Link removido.', type: 'success' });
     };
 
+    const handleAddCampaign = async () => {
+        if (!newCampaignData.name || !newCampaignData.platform) return;
+        await onAddCampaign({
+            ...newCampaignData,
+            clientId: client.id,
+            spend: Number(newCampaignData.spend) || 0,
+            roas: Number(newCampaignData.roas) || 0,
+            ctr: Number(newCampaignData.ctr) || 0,
+            cpa: Number(newCampaignData.cpa) || 0,
+        } as any);
+        setNewCampaignModalOpen(false);
+        setNewCampaignData({ status: 'Ativa' });
+        setToast({ msg: 'Campanha criada!', type: 'success' });
+    };
+
     // --- Checklist Manipulation ---
     const saveChecklist = (newChecklist: ChecklistItem[]) => {
         setChecklist(newChecklist);
@@ -248,6 +268,28 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                         {['CRM', 'Ads', 'Analytics', 'Drive', 'Site', 'Outros'].map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                     <button onClick={handleAddLink} className="w-full bg-vblack text-white py-3 rounded-lg font-bold hover:bg-gray-800">Salvar Link</button>
+                </div>
+            </Modal>
+
+            <Modal isOpen={newCampaignModalOpen} onClose={() => setNewCampaignModalOpen(false)} title="Nova Campanha" size="sm">
+                <div className="p-6 space-y-4">
+                    <input className="w-full border p-3 rounded-lg text-sm" placeholder="Nome da Campanha" value={newCampaignData.name || ''} onChange={e => setNewCampaignData({ ...newCampaignData, name: e.target.value })} />
+                    <select className="w-full border p-3 rounded-lg text-sm bg-white" value={newCampaignData.platform || ''} onChange={e => setNewCampaignData({ ...newCampaignData, platform: e.target.value as any })}>
+                        <option value="">Selecione a Plataforma...</option>
+                        <option value="Google Ads">Google Ads</option>
+                        <option value="Meta Ads">Meta Ads</option>
+                        <option value="TikTok Ads">TikTok Ads</option>
+                        <option value="LinkedIn Ads">LinkedIn Ads</option>
+                    </select>
+                    <div className="grid grid-cols-2 gap-4">
+                        <input type="number" className="w-full border p-3 rounded-lg text-sm" placeholder="Investimento (R$)" value={newCampaignData.spend || ''} onChange={e => setNewCampaignData({ ...newCampaignData, spend: Number(e.target.value) })} />
+                        <input type="number" className="w-full border p-3 rounded-lg text-sm" placeholder="ROAS (Ex: 5.2)" value={newCampaignData.roas || ''} onChange={e => setNewCampaignData({ ...newCampaignData, roas: Number(e.target.value) })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <input type="number" className="w-full border p-3 rounded-lg text-sm" placeholder="CTR (%)" value={newCampaignData.ctr || ''} onChange={e => setNewCampaignData({ ...newCampaignData, ctr: Number(e.target.value) })} />
+                        <input type="number" className="w-full border p-3 rounded-lg text-sm" placeholder="CPA (R$)" value={newCampaignData.cpa || ''} onChange={e => setNewCampaignData({ ...newCampaignData, cpa: Number(e.target.value) })} />
+                    </div>
+                    <button onClick={handleAddCampaign} className="w-full bg-vblack text-white py-3 rounded-lg font-bold hover:bg-gray-800">Criar Campanha</button>
                 </div>
             </Modal>
 
@@ -576,6 +618,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                                 <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Campanhas Ativas</h3>
                                 <p className="text-sm text-gray-500 mt-1">Visão geral da estrutura de tráfego pago.</p>
                             </div>
+                            <button onClick={() => setNewCampaignModalOpen(true)} className="bg-vblack text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-800 transition-all"><Plus weight="bold" /> Nova Campanha</button>
                         </div>
 
                         {clientCampaigns.length > 0 ? (

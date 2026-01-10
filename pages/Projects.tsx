@@ -40,8 +40,10 @@ const ProjectTaskCard: React.FC<{ task: Task; onClick: (t: Task) => void }> = Re
         }
     };
 
+    const isCompleted = task.status === 'concluido';
+
     return (
-        <div onClick={() => onClick(task)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group hover:border-gray-300 select-none">
+        <div onClick={() => onClick(task)} className={`bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group hover:border-gray-300 select-none ${isCompleted ? 'opacity-60 bg-gray-50' : ''}`}>
             <div className="flex justify-between items-start mb-2 gap-2">
                 <div className="flex gap-2">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${getPriorityColor(task.priority)}`}>{task.priority}</span>
@@ -49,7 +51,7 @@ const ProjectTaskCard: React.FC<{ task: Task; onClick: (t: Task) => void }> = Re
                 </div>
                 <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">{task.tag}</span>
             </div>
-            <p className="text-sm font-bold text-vblack leading-snug mb-1">{task.title}</p>
+            <p className={`text-sm font-bold text-vblack leading-snug mb-1 ${isCompleted ? 'line-through text-gray-500' : ''}`}>{task.title}</p>
             <div className="flex justify-between items-center border-t border-gray-50 pt-3">
                 <div className="flex items-center -space-x-1.5 overflow-hidden">
                     {(task.assignees && task.assignees.length > 0) ? (
