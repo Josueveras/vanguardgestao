@@ -90,12 +90,21 @@ interface MetricCardProps {
   value: string | number;
   subtext?: string;
   trend?: string | 'up' | 'down' | 'neutral';
+  trendValue?: number; // Added for precise color logic
   icon?: React.ElementType;
   color?: 'blue' | 'red' | 'orange' | 'green' | 'purple' | 'gray';
   prefix?: string;
 }
 
-export const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtext, trend, icon: Icon, color = 'blue', prefix = '' }) => {
+// Import helper if possible, or just duplicate logic since we can't easily import from utils here without checking circular deps structure in user's project?
+// Actually utils/metrics.ts creates circular dep if it imports from component, but component importing from utils is usually fine.
+// But wait, ui.tsx is in components/, metrics.ts is in utils/.
+// Let's safe-guard by just implementing the logic or importing. Importing is better.
+// "Centralize this rule in a reusable function" -> user wants function.
+// I will import it.
+import { getTrendColor } from '../utils/metrics';
+
+export const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtext, trend, trendValue, icon: Icon, color = 'blue', prefix = '' }) => {
   const colors: Record<string, string> = {
     blue: 'bg-blue-50 text-blue-600',
     red: 'bg-red-50 text-red-600',
@@ -105,6 +114,12 @@ export const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtext, t
     gray: 'bg-gray-50 text-gray-600'
   };
   const selectedColor = colors[color] || colors.blue;
+
+  // Determine color class: priority to trendValue using centralized logic
+  const trendColorClass = trendValue !== undefined
+    ? getTrendColor(trendValue)
+    : (trend === 'neutral' || trend === '0%' || trend === '0' ? 'bg-gray-100 text-gray-600' :
+      (typeof trend === 'string' && (trend.includes('+') || trend === 'up')) ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700');
 
   return (
     <Card className="p-5 flex flex-col justify-between h-full min-h-[140px]">
@@ -123,10 +138,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtext, t
       <div className="mt-3">
         {trend ? (
           <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded ${trend === 'neutral' ? 'bg-gray-100 text-gray-600' :
-              (typeof trend === 'string' && (trend.includes('+') || trend === 'up')) ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-              }`}>
-              {(typeof trend === 'string' && (trend.includes('+') || trend === 'up')) ? <TrendUp weight="bold" className="mr-1" /> : <TrendDown weight="bold" className="mr-1" />}
+            <span className={`inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded ${trendColorClass}`}>
+              {(typeof trend === 'string' && (trend.includes('+') || trend === 'up')) ? <TrendUp weight="bold" className="mr-1" /> : (trend === 'down' || (typeof trend === 'string' && trend.includes('-'))) ? <TrendDown weight="bold" className="mr-1" /> : <div className="w-2 h-0.5 bg-gray-400 rounded-full mr-1" />}
               {trend === 'up' || trend === 'down' ? '' : trend}
             </span>
             <span className="text-xs text-gray-400">{subtext}</span>

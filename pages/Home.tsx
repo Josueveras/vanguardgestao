@@ -23,7 +23,7 @@ import { Card, Button, Modal, Toast } from '../components/ui';
 import { Task, Lead, Client, SOPItem, Meeting } from '../types';
 import { useVanguard } from '../context/VanguardContext';
 import { useAuth } from '../context/AuthContext';
-import { calculateStockMetrics, calculateFlowMetrics } from '../utils/metrics';
+import { calculateStockMetrics, calculateFlowMetrics, getTrendColor } from '../utils/metrics';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -259,6 +259,7 @@ export const HomeModule = () => {
         value: mrrMetrics.formatted,
         change: mrrMetrics.change,
         trend: mrrMetrics.trend,
+        numericTrend: mrrMetrics.numericTrend,
         icon: ChartLineUp,
         target: 'CLIENTS' as const
       },
@@ -267,6 +268,7 @@ export const HomeModule = () => {
         value: activeClientsMetrics.formatted,
         change: activeClientsMetrics.change,
         trend: activeClientsMetrics.trend,
+        numericTrend: activeClientsMetrics.numericTrend,
         icon: Users,
         target: 'CLIENTS' as const
       },
@@ -275,6 +277,7 @@ export const HomeModule = () => {
         value: pipelineMetrics.formatted,
         change: pipelineMetrics.change,
         trend: pipelineMetrics.trend,
+        numericTrend: pipelineMetrics.numericTrend,
         icon: Funnel,
         target: 'CRM' as const
       },
@@ -283,6 +286,7 @@ export const HomeModule = () => {
         value: `+${newClientsMetrics.value}`,
         change: newClientsMetrics.change,
         trend: newClientsMetrics.trend,
+        numericTrend: newClientsMetrics.numericTrend,
         icon: UserPlus,
         target: 'CLIENTS' as const
       },
@@ -438,10 +442,7 @@ export const HomeModule = () => {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-vblack tracking-tight">{kpi.value}</div>
-                  <div className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-xs font-bold ${kpi.trend === 'up' ? 'bg-green-50 text-green-700' :
-                    kpi.trend === 'down' ? 'bg-red-50 text-red-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
+                  <div className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-xs font-bold ${getTrendColor(kpi.numericTrend)}`}>
                     {kpi.trend === 'up' ? <TrendUp weight="bold" /> : kpi.trend === 'down' ? <TrendDown weight="bold" /> : <div className="w-2 h-0.5 bg-gray-400 rounded-full" />}
                     {kpi.change}
                   </div>

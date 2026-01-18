@@ -187,6 +187,7 @@ export const CRMModule: React.FC = () => {
           title="Receita Confirmada"
           value={stats.revenueMetrics.formatted}
           trend={stats.revenueMetrics.trend}
+          trendValue={stats.revenueMetrics.numericTrend}
           subtext={`${stats.closedLeads} contratos fechados`}
           icon={CheckCircle}
           color="green"
@@ -195,6 +196,7 @@ export const CRMModule: React.FC = () => {
           title="Pipeline Total"
           value={stats.pipelineMetrics.formatted}
           trend={stats.pipelineMetrics.trend}
+          trendValue={stats.pipelineMetrics.numericTrend}
           subtext="Forecast ponderado"
           icon={ChartBar}
           color="blue"

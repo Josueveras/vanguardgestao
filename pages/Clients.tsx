@@ -20,7 +20,7 @@ import {
 import { Modal, Toast } from '../components/ui';
 import { ClientProfile } from './ClientProfile';
 import { useVanguard } from '../context/VanguardContext';
-import { calculateStockMetrics } from '../utils/metrics';
+import { calculateStockMetrics, getTrendColor } from '../utils/metrics';
 
 const ClientMetricCard = ({ title, metric, icon: Icon, type = 'neutral', prefix = '' }: any) => {
   const types = {
@@ -40,9 +40,7 @@ const ClientMetricCard = ({ title, metric, icon: Icon, type = 'neutral', prefix 
       <div>
         <h3 className="text-3xl font-bold text-vblack tracking-tight">{prefix}{metric.formatted || metric.value}</h3>
         {metric.trend && (
-          <div className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-[10px] font-bold ${metric.trend === 'up' ? 'bg-green-50 text-green-700' :
-            metric.trend === 'down' ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600'
-            }`}>
+          <div className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-[10px] font-bold ${getTrendColor(metric.numericTrend)}`}>
             {metric.trend === 'up' ? <TrendUp weight="bold" /> : metric.trend === 'down' ? <TrendDown weight="bold" /> : <div className="w-2 h-0.5 bg-gray-400 rounded-full" />}
             {metric.change}
           </div>

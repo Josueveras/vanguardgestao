@@ -154,3 +154,16 @@ export const calculateFlowMetrics = (
 export const aggregate = (items: any[], field: string): number => {
     return items.reduce((acc, item) => acc + (Number(item[field]) || 0), 0);
 };
+
+/**
+ * Trend Color Logic (Centralized)
+ */
+export const getTrendColor = (value: number | null | undefined): string => {
+    if (value === null || value === undefined || value === 0) {
+        return 'bg-gray-100 text-gray-600'; // Neutral
+    }
+    if (value > 0) {
+        return 'bg-green-50 text-green-700'; // Positive
+    }
+    return 'bg-red-50 text-red-700'; // Negative (value < 0)
+};
