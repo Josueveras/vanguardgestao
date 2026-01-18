@@ -32,7 +32,7 @@ import {
     X,
     Archive
 } from '@phosphor-icons/react';
-import { Modal, MetricCard } from '../components/ui';
+import { MetricCard } from '../components/ui';
 import { TaskFormModal } from '../components/TaskFormModal';
 import { useVanguard } from '../context/VanguardContext';
 

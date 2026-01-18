@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Lead } from '../types';
 import { MetricCard, Toast } from '../components/ui';
 import {

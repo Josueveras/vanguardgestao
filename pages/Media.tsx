@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { ContentItem } from '../types';
-import { Modal, Toast } from '../components/ui';
+import { Toast } from '../components/ui';
 import {
     Plus,
     InstagramLogo,
@@ -25,7 +25,8 @@ import {
     BookmarkSimple,
     ThumbsUp,
     PencilSimple,
-    CheckCircle
+    CheckCircle,
+    X
 } from '@phosphor-icons/react';
 import { useVanguard } from '../context/VanguardContext';
 
@@ -336,7 +337,7 @@ export const MediaModule: React.FC = () => {
                         <div className="w-full lg:w-1/2 flex flex-col border-r border-gray-200">
                             <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50">
                                 <h3 className="text-xl font-bold text-vblack">{editingItem.id ? 'Editar Post' : 'Novo Post'}</h3>
-                                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-black transition-colors"><Trash size={20} /></button>
+                                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-black transition-colors"><X size={20} /></button>
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-8 space-y-6">
