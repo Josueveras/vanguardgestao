@@ -87,7 +87,7 @@ export const calculateStockMetrics = (
     return {
         value: currentValue,
         formatted: valueField ? formatCurrency(currentValue) : currentValue.toString(),
-        change: `${Math.abs(Math.round(changePercent))}%`,
+        change: `${changePercent > 0 ? '+' : ''}${Math.round(changePercent)}%`,
         trend,
         numericTrend: changePercent
     };
@@ -142,7 +142,7 @@ export const calculateFlowMetrics = (
     return {
         value: currentValue,
         formatted: valueField ? formatCurrency(currentValue) : currentValue.toString(),
-        change: `${Math.abs(Math.round(changePercent))}%`,
+        change: `${changePercent > 0 ? '+' : ''}${Math.round(changePercent)}%`,
         trend,
         numericTrend: changePercent
     };
