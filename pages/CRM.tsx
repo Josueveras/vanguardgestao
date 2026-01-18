@@ -15,6 +15,25 @@ import { calculateStockMetrics, calculateFlowMetrics } from '../utils/metrics';
 
 import { KanbanColumn } from '../components/CRM/KanbanColumn';
 import { LeadFormModal } from '../components/CRM/LeadFormModal';
+import { SortableLeadCard } from '../components/CRM/SortableLeadCard';
+import { LeadCard } from '../components/CRM/LeadCard';
+
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  DragStartEvent,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 export const CRMModule: React.FC = () => {
   const { leads, addLead, updateLead, deleteLead, loading } = useVanguard();
@@ -22,7 +41,14 @@ export const CRMModule: React.FC = () => {
   const [editingLead, setEditingLead] = useState<Partial<Lead>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
-  const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
+
+  // DnD State
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const stages: { key: Lead['stage']; label: string; color: string }[] = useMemo(() => [
     { key: 'prospect', label: 'Prospect', color: 'bg-gray-400' },
@@ -53,7 +79,6 @@ export const CRMModule: React.FC = () => {
         await updateLead(leadToSave);
         setToast({ msg: 'Lead atualizado!', type: 'success' });
       } else {
-        // Safe cast as we validated company and name
         await addLead(leadToSave as unknown as Omit<Lead, 'id' | 'user_id' | 'created_at'>);
         setToast({ msg: 'Novo lead criado!', type: 'success' });
       }
@@ -63,51 +88,53 @@ export const CRMModule: React.FC = () => {
     }
   }, [editingLead.id, updateLead, addLead]);
 
-  const handleDragStart = useCallback((e: React.DragEvent, lead: Lead) => {
+  // DnD Handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
 
-    setDraggedLead(lead);
-    e.dataTransfer.effectAllowed = "move";
-  }, []);
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  }, []);
+    if (!over) return;
 
-  const handleDrop = useCallback(async (e: React.DragEvent, newStage: Lead['stage']) => {
-    e.preventDefault();
+    const activeLeadId = active.id as string;
+    const activeLead = leads.find(l => l.id === activeLeadId);
+    if (!activeLead) return;
 
-    if (!draggedLead || draggedLead.stage === newStage) return;
+    const overId = over.id as string;
+    const isOverColumn = stages.map(s => s.key).includes(overId as any);
 
-    try {
-      const updatedLead = { ...draggedLead, stage: newStage };
-      await updateLead(updatedLead);
-      setToast({ msg: `Lead movido para ${newStage}`, type: 'success' });
-    } catch (err) {
-      setToast({ msg: 'Erro ao mover lead', type: 'error' });
-    } finally {
-      setDraggedLead(null);
+    let newStage = activeLead.stage;
+
+    if (isOverColumn) {
+      newStage = overId as Lead['stage'];
+    } else {
+      // Dropped on another Lead?
+      const overLead = leads.find(l => l.id === overId);
+      if (overLead) {
+        newStage = overLead.stage;
+      }
     }
-  }, [draggedLead, updateLead]);
+
+    if (activeLead.stage !== newStage) {
+      try {
+        await updateLead({ ...activeLead, stage: newStage });
+        setToast({ msg: `Lead movido para ${newStage}`, type: 'success' });
+      } catch (e) {
+        setToast({ msg: 'Erro ao mover lead', type: 'error' });
+      }
+    }
+  };
+
 
   const stats = useMemo(() => {
-    // 1. Receita Confirmada (Accumulated Stock of Won Deals)
     const revenueMetrics = calculateStockMetrics(leads, 'value', l => l.stage === 'fechado');
-
-    // 2. Pipeline Total (Stock of Open Deals)
-    const pipelineMetrics = calculateStockMetrics(leads, 'value', l => l.stage !== 'fechado'); // Assuming non-closed are open
-
-    // 3. Conversão (Rate)
+    const pipelineMetrics = calculateStockMetrics(leads, 'value', l => l.stage !== 'fechado');
     const totalLeads = leads.length;
     const closedLeads = leads.filter(l => l.stage === 'fechado').length;
     const conversionRate = totalLeads > 0 ? ((closedLeads / totalLeads) * 100).toFixed(1) : '0.0';
-
-    // 4. Ticket Médio (Average Deal Size) - Derived from Pipeline
-    // Current Logic uses ALL leads. Let's keep consistency or maybe just Open deals?
-    // "Ticket Médio" usually refers to Won deals or All deals. The previous code used ALL leads.
-    // Let's stick to ALL leads for now to avoid changing the number drastically, or switch to WON if it makes more sense.
-    // User asked for "standardization". Ticket Médio usually = Revenue / Count.
-    // Let's use the stats from Leads context directly for average.
     const avgTicketValue = totalLeads > 0 ? (leads.reduce((acc, l) => acc + (Number(l.value) || 0), 0) / totalLeads) : 0;
 
     return {
@@ -172,7 +199,6 @@ export const CRMModule: React.FC = () => {
           icon={ChartBar}
           color="blue"
         />
-        {/* Métrica Dinâmica de Ticket Médio */}
         <MetricCard
           title="Ticket Médio"
           value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.avgTicketValue)}
@@ -190,24 +216,51 @@ export const CRMModule: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-x-auto pb-2">
-        <div className="flex gap-4 h-full min-w-[1200px]">
-          {stages.map((stage) => {
-            const stageLeads = filteredLeads.filter(l => l.stage === stage.key);
-            return (
-              <KanbanColumn
-                key={stage.key}
-                title={stage.label}
-                leads={stageLeads}
-                count={stageLeads.length}
-                color={stage.color}
-                onLeadClick={handleLeadClick}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, stage.key)}
-              />
-            );
-          })}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex gap-4 h-full min-w-[1200px]">
+            {stages.map((stage) => {
+              const stageLeads = filteredLeads.filter(l => l.stage === stage.key);
+              return (
+                <KanbanColumn
+                  key={stage.key}
+                  id={stage.key}
+                  title={stage.label}
+                  count={stageLeads.length}
+                  color={stage.color}
+                >
+                  <SortableContext items={stageLeads.map(l => l.id)} strategy={verticalListSortingStrategy}>
+                    {stageLeads.map(lead => (
+                      <SortableLeadCard key={lead.id} lead={lead}>
+                        <LeadCard lead={lead} onClick={handleLeadClick} />
+                      </SortableLeadCard>
+                    ))}
+                  </SortableContext>
+                  {stageLeads.length === 0 && (
+                    <div className="h-32 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-gray-300 gap-2">
+                      <span className="text-xs font-medium">Sem leads</span>
+                    </div>
+                  )}
+                </KanbanColumn>
+              );
+            })}
+          </div>
+
+          <DragOverlay>
+            {activeId ? (
+              <div className="opacity-90 rotate-2 scale-105 cursor-grabbing">
+                {(() => {
+                  const lead = leads.find(l => l.id === activeId);
+                  return lead ? <LeadCard lead={lead} onClick={() => { }} /> : null;
+                })()}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
     </div>
   );

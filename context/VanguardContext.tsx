@@ -47,6 +47,11 @@ interface VanguardContextType {
     addMeeting: (item: Omit<Meeting, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
     updateMeeting: (item: Meeting) => Promise<void>;
     deleteMeeting: (id: string) => Promise<void>;
+
+    // Operational Actions
+    archiveTask: (id: string) => Promise<void>;
+    restoreTask: (id: string) => Promise<void>;
+    reorderTask: (id: string, newIndex: number, newStatus?: Task['status']) => Promise<void>;
 }
 
 const VanguardContext = createContext<VanguardContextType | undefined>(undefined);
@@ -492,6 +497,49 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         if (!error) setMeetings(prev => prev.filter(item => item.id !== id));
     };
 
+    // --- Operational Features ---
+
+    const archiveTask = async (id: string) => {
+        // Optimistic
+        setTasks(prev => prev.map(t => t.id === id ? { ...t, archived: true } : t));
+        // DB Update (Safe fail)
+        try {
+            await supabase.from('tasks').update({ archived: true, archived_at: new Date().toISOString() }).eq('id', id);
+        } catch (e) {
+            console.warn('Backend does not support archiving yet');
+        }
+    };
+
+    const restoreTask = async (id: string) => {
+        setTasks(prev => prev.map(t => t.id === id ? { ...t, archived: false } : t));
+        try {
+            await supabase.from('tasks').update({ archived: false, archived_at: null }).eq('id', id);
+        } catch (e) { console.warn('Backend update failed'); }
+    };
+
+    const reorderTask = async (id: string, newIndex: number, newStatus?: Task['status']) => {
+        // Find task
+        const task = tasks.find(t => t.id === id);
+        if (!task) return;
+
+        // Optimistic Update
+        const updatedTask = { ...task, position: newIndex, status: newStatus || task.status };
+        setTasks(prev => {
+            const others = prev.filter(t => t.id !== id);
+            // Insert at new index? For now simply update property.
+            // A full reorder logic typically involves shifting others.
+            // For MVP: Just update the specific task's position.
+            return prev.map(t => t.id === id ? updatedTask : t);
+        });
+
+        try {
+            await supabase.from('tasks').update({
+                position: newIndex,
+                status: newStatus || task.status
+            }).eq('id', id);
+        } catch (e) { console.warn('Backend sort failed'); }
+    };
+
     return (
         <VanguardContext.Provider value={{
             clients, tasks, leads, campaigns, sops, content, performance,
@@ -502,7 +550,8 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             addContent, updateContent, deleteContent,
             addSOP, updateSOP, deleteSOP,
             addCampaign,
-            meetings, addMeeting, updateMeeting, deleteMeeting
+            meetings, addMeeting, updateMeeting, deleteMeeting,
+            archiveTask, restoreTask, reorderTask
         }}>
             {children}
         </VanguardContext.Provider>

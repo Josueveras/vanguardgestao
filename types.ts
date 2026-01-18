@@ -7,6 +7,7 @@ export interface ClientLink {
   title: string;
   url: string;
   category: 'CRM' | 'Ads' | 'Analytics' | 'Drive' | 'Site' | 'Outros';
+  position?: number; // For reordering
 }
 
 export interface ClientStrategy {
@@ -27,6 +28,7 @@ export interface ChecklistItem {
   id: string;
   text: string;
   completed: boolean;
+  position?: number;
 }
 
 export interface Client {
@@ -78,6 +80,7 @@ export interface Lead {
   size?: string;
   city?: string;
   website?: string;
+  position?: number; // Drag & Drop Order
 
   // Value & Stage
   value: number;
@@ -112,6 +115,7 @@ export interface Subtask {
   id: string;
   text: string;
   completed: boolean;
+  position?: number; // Subtask ordering
 }
 
 export interface TaskComment {
@@ -132,6 +136,13 @@ export interface Task {
   tag: 'marketing' | 'tecnologia' | 'vendas';
   assignees: string[];
   dueDate: string;
+
+  // Operational Fields
+  start_date?: string; // For Gantt
+  dependencies?: string[]; // IDs of tasks that must be completed before this one
+  position?: number; // Kanban/List ordering
+  archived?: boolean; // Archiving system
+
   checklist?: ChecklistItem[];
   subtasks?: Subtask[];
   comments?: TaskComment[];
@@ -178,6 +189,7 @@ export interface SOPItem {
   category: 'Onboarding' | 'Vendas' | 'Técnico' | 'Geral';
   lastUpdated: string;
   content?: string; // Content of the SOP
+  position?: number; // Reorder
 }
 
 export interface ContentItem {
@@ -191,6 +203,7 @@ export interface ContentItem {
   assignee: string;
   creativeUrl?: string; // Added for visual preview
   caption?: string; // New Field for Post Caption
+  position?: number; // Kanban sort
 }
 
 export interface Moonshot {
@@ -201,6 +214,7 @@ export interface Moonshot {
   probability: number;
   status: 'ignition' | 'orbit' | 'landing' | 'abort';
   progress: number;
+  loading?: boolean;
 }
 
 export interface Meeting {
