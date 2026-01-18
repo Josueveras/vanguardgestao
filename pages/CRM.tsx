@@ -11,7 +11,7 @@ import {
   Target,
 } from '@phosphor-icons/react';
 import { useVanguard } from '../context/VanguardContext';
-import { LeadCard } from '../components/CRM/LeadCard';
+
 import { KanbanColumn } from '../components/CRM/KanbanColumn';
 import { LeadFormModal } from '../components/CRM/LeadFormModal';
 
@@ -63,7 +63,7 @@ export const CRMModule: React.FC = () => {
   }, [editingLead.id, updateLead, addLead]);
 
   const handleDragStart = useCallback((e: React.DragEvent, lead: Lead) => {
-    console.log('Drag Start:', lead.id);
+
     setDraggedLead(lead);
     e.dataTransfer.effectAllowed = "move";
   }, []);
@@ -75,7 +75,7 @@ export const CRMModule: React.FC = () => {
 
   const handleDrop = useCallback(async (e: React.DragEvent, newStage: Lead['stage']) => {
     e.preventDefault();
-    console.log('Drop event on stage:', newStage, 'Dragging:', draggedLead?.id);
+
     if (!draggedLead || draggedLead.stage === newStage) return;
 
     try {

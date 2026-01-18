@@ -2,7 +2,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   ChartLineUp,
-  Rocket,
   VideoCamera,
   TrendUp,
   TrendDown,
@@ -18,8 +17,6 @@ import {
   Target,
   Users,
   Kanban,
-
-  Files,
   Calendar
 } from '@phosphor-icons/react';
 import { Card, Button, Modal, Toast } from '../components/ui';
@@ -435,8 +432,8 @@ export const HomeModule = () => {
                 <div>
                   <div className="text-3xl font-bold text-vblack tracking-tight">{kpi.value}</div>
                   <div className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-xs font-bold ${kpi.trend === 'up' ? 'bg-green-50 text-green-700' :
-                      kpi.trend === 'down' ? 'bg-red-50 text-red-700' :
-                        'bg-gray-100 text-gray-600'
+                    kpi.trend === 'down' ? 'bg-red-50 text-red-700' :
+                      'bg-gray-100 text-gray-600'
                     }`}>
                     {kpi.trend === 'up' ? <TrendUp weight="bold" /> : kpi.trend === 'down' ? <TrendDown weight="bold" /> : <div className="w-2 h-0.5 bg-gray-400 rounded-full" />}
                     {kpi.change}

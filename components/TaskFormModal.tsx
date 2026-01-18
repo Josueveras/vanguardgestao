@@ -6,10 +6,6 @@ import {
     PaperPlaneRight,
     PencilSimple,
     Plus,
-    Calendar,
-    Hash,
-    Timer,
-    CaretDown,
     Trash
 } from '@phosphor-icons/react';
 import { Task, Subtask, TaskComment, ChecklistItem } from '../types';
