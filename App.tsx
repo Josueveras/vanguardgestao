@@ -17,6 +17,7 @@ const ProjectsModule = React.lazy(() => import('./pages/Projects').then(module =
 const PerformanceModule = React.lazy(() => import('./pages/Performance').then(module => ({ default: module.PerformanceModule })));
 const MediaModule = React.lazy(() => import('./pages/Media').then(module => ({ default: module.MediaModule })));
 const SOPModule = React.lazy(() => import('./pages/SOP').then(module => ({ default: module.SOPModule })));
+const AgendaModule = React.lazy(() => import('./pages/Agenda').then(module => ({ default: module.AgendaModule })));
 const SettingsModule = React.lazy(() => import('./pages/Settings').then(module => ({ default: module.SettingsModule })));
 
 const App: React.FC = () => {
@@ -57,6 +58,7 @@ const App: React.FC = () => {
                               <Route path="/performance" element={<PerformanceModule />} />
                               <Route path="/media" element={<MediaModule />} />
                               <Route path="/sop" element={<SOPModule />} />
+                              <Route path="/agenda" element={<AgendaModule />} />
                               <Route path="/settings" element={<SettingsModule />} />
                               <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>

@@ -30,6 +30,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({ isOpen, onClose, l
         if (data.maturity === 'Média') score += 20;
         if (data.origin === 'Indicação') score += 30;
         if (data.buyingMoment === 'Decisão') score += 20;
+        if (data.probability && data.probability > 50) score += 20;
         return Math.min(100, score);
     };
 
@@ -60,6 +61,10 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({ isOpen, onClose, l
                 if (formData.value !== lead.value) changedFields.push('Valor');
                 if (formData.segment !== lead.segment) changedFields.push('Segmento');
                 if (formData.website !== lead.website) changedFields.push('Website');
+                if (formData.responsibleName !== lead.responsibleName) changedFields.push('Responsável');
+                if (formData.probability !== lead.probability) changedFields.push('Probabilidade');
+                if (formData.nextActionDate !== lead.nextActionDate) changedFields.push('Data da Próxima Ação');
+                if (formData.nextActionType !== lead.nextActionType) changedFields.push('Tipo da Próxima Ação');
 
                 if (changedFields.length > 0) {
                     updatedLead.timeline?.push({
@@ -141,8 +146,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({ isOpen, onClose, l
                                 <div><label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Valor (R$)</label><input type="number" className={baseInputClass} value={formData.value || ''} onChange={e => setFormData({ ...formData, value: Number(e.target.value) })} /></div>
                                 <div><label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Segmento</label><input className={baseInputClass} value={formData.segment || ''} onChange={e => setFormData({ ...formData, segment: e.target.value })} /></div>
                                 <div><label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Website</label><input className={baseInputClass} value={formData.website || ''} onChange={e => setFormData({ ...formData, website: e.target.value })} /></div>
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Origem</label>
+                                <div><label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Origem</label>
                                     <select className={baseInputClass} value={formData.origin || ''} onChange={e => setFormData({ ...formData, origin: e.target.value })}>
                                         <option value="">Selecione...</option>
                                         <option value="Indicação">Indicação</option>
@@ -150,6 +154,26 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({ isOpen, onClose, l
                                         <option value="Meta Ads">Meta Ads</option>
                                         <option value="Outbound">Captação Direta</option>
                                     </select>
+                                </div>
+                                <div><label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Responsável</label><input className={baseInputClass} value={formData.responsibleName || ''} onChange={e => setFormData({ ...formData, responsibleName: e.target.value })} placeholder="Nome do responsável" /></div>
+                                <div><label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Probabilidade (%)</label><input type="number" className={baseInputClass} value={formData.probability || 0} onChange={e => setFormData({ ...formData, probability: Number(e.target.value) })} /></div>
+                            </div>
+
+                            <SectionTitle icon={Clock} color="text-orange-500" title="2. Próxima Ação" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Tipo de Ação</label>
+                                    <select className={baseInputClass} value={formData.nextActionType || 'follow-up'} onChange={e => setFormData({ ...formData, nextActionType: e.target.value as any })}>
+                                        <option value="reuniao">Reunião</option>
+                                        <option value="ligacao">Ligação</option>
+                                        <option value="follow-up">Follow-up</option>
+                                        <option value="email">E-mail</option>
+                                        <option value="outro">Outro</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Data/Hora da Ação</label>
+                                    <input type="datetime-local" className={baseInputClass} value={formData.nextActionDate ? formData.nextActionDate.slice(0, 16) : ''} onChange={e => setFormData({ ...formData, nextActionDate: e.target.value })} />
                                 </div>
                             </div>
                         </div>

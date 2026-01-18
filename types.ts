@@ -105,6 +105,12 @@ export interface Lead {
 
   // Scheduling
   nextMeeting?: string; // ISO Date
+  nextActionDate?: string; // ISO Date/Time
+  nextActionType?: 'reuniao' | 'ligacao' | 'follow-up' | 'email' | 'outro';
+
+  // Operational
+  responsibleName?: string;
+  probability?: number; // 0-100
 
   // Extras
   timeline?: LeadHistoryItem[];
@@ -225,6 +231,7 @@ export interface Meeting {
   type: 'Google Meet' | 'Zoom' | 'Interno' | 'Presencial' | 'Outro';
   status?: 'scheduled' | 'completed' | 'canceled';
   clientId?: string;
+  leadId?: string;
   link?: string;
   description?: string;
   user_id?: string;

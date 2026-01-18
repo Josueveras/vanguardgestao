@@ -71,16 +71,17 @@ export const HomeModule = () => {
       .filter(m => isToday(m.start_time))
       .map(m => {
         const clientName = m.clientId ? clients.find(c => c.id === m.clientId)?.name : null;
+        const leadName = m.leadId ? leads.find(l => l.id === m.leadId)?.company : null;
         return {
           id: m.id,
           time: new Date(m.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
           title: m.title,
-          sub: clientName, // New field for UI
+          sub: clientName || leadName,
           type: m.type,
           isMeeting: true
         };
       });
-  }, [meetings]);
+  }, [meetings, clients, leads]);
 
   const [showAllAgenda, setShowAllAgenda] = useState(false);
   const displayedAgenda = showAllAgenda ? agenda : agenda.slice(0, 3);
@@ -223,7 +224,7 @@ export const HomeModule = () => {
       });
       setToast({ msg: 'Compromisso agendado!', type: 'success' });
       setActiveModal(null);
-      setQuickMeeting({ title: '', time: '', type: 'Google Meet', clientId: '' });
+      setQuickMeeting({ title: '', time: '', type: 'Google Meet', clientId: '', leadId: '' } as any);
     } catch (e) {
       setToast({ msg: 'Erro ao agendar compromisso', type: 'error' });
     } finally {
@@ -374,9 +375,13 @@ export const HomeModule = () => {
             <option value="Zoom">Zoom</option>
             <option value="Presencial">Presencial</option>
           </select>
-          <select className="w-full border p-2 rounded text-sm bg-white" value={quickMeeting.clientId} onChange={e => setQuickMeeting({ ...quickMeeting, clientId: e.target.value })}>
+          <select className="w-full border p-2 rounded text-sm bg-white" value={quickMeeting.clientId} onChange={e => setQuickMeeting({ ...quickMeeting, clientId: e.target.value, leadId: '' } as any)}>
             <option value="">Vincular Cliente (Opcional)</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select className="w-full border p-2 rounded text-sm bg-white" value={(quickMeeting as any).leadId || ''} onChange={e => setQuickMeeting({ ...quickMeeting, leadId: e.target.value, clientId: '' } as any)}>
+            <option value="">Vincular Lead (Opcional)</option>
+            {leads.map(l => <option key={l.id} value={l.id}>{l.company}</option>)}
           </select>
           <Button onClick={handleSaveQuickMeeting} className="w-full" disabled={isSaving}>
             {isSaving ? 'Agendando...' : 'Agendar'}
@@ -563,7 +568,10 @@ export const HomeModule = () => {
                       </div>
                     </div>
                   )) : (
-                    <div className="text-center py-4 text-gray-400 text-xs">Livre hoje.</div>
+                    <div className="text-center py-10 bg-gray-50/50 rounded-xl border-2 border-dashed border-gray-100">
+                      <p className="text-sm font-bold text-gray-400">Livre hoje</p>
+                      <p className="text-[10px] text-gray-300 uppercase tracking-widest mt-1">Sem reuniões ou tarefas prioritárias</p>
+                    </div>
                   )}
                 </div>
               </Card>

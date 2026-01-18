@@ -7,7 +7,8 @@ import {
   BookOpen,
   Gear,
   Rocket,
-  Megaphone
+  Megaphone,
+  Calendar
 } from '@phosphor-icons/react';
 import { NavLink } from 'react-router-dom';
 import { CaretLeft, CaretRight } from '@phosphor-icons/react';
@@ -30,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps & { isMobileOpen: boolean; setIsMobi
     { path: '/performance', icon: ChartLineUp, label: 'Resultados & ROI' },
     { path: '/clients', icon: Users, label: 'Carteira de Clientes' },
     { path: '/media', icon: Megaphone, label: 'Conteúdo & Mídia' },
+    { path: '/agenda', icon: Calendar, label: 'Agenda Operacional' },
     { path: '/sop', icon: BookOpen, label: 'SOP & Playbooks' },
   ];
 

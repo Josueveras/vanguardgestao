@@ -130,6 +130,10 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
                 stage: l.status || 'prospect',
                 painPoints: l.pain_points,
                 nextMeeting: l.meeting_date,
+                nextActionDate: l.next_action_date,
+                nextActionType: l.next_action_type || 'follow-up',
+                responsibleName: l.responsible_name,
+                probability: l.probability || 0,
                 timeline: l.history || [],
                 segment: l.segment || '',
                 website: l.website || ''
@@ -155,6 +159,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             setMeetings((meetingsData || []).map(m => ({
                 ...m,
                 clientId: m.client_id,
+                leadId: m.lead_id,
                 status: m.status || 'scheduled'
             })) as Meeting[]);
 
@@ -300,6 +305,10 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             origin: l.origin || '',
             pain_points: l.painPoints || '',
             meeting_date: l.nextMeeting || null,
+            next_action_date: l.nextActionDate || null,
+            next_action_type: l.nextActionType || 'follow-up',
+            responsible_name: l.responsibleName || '',
+            probability: l.probability || 0,
             history: l.timeline || [],
             segment: l.segment || '',
             website: l.website || '',
@@ -319,6 +328,10 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
                 stage: data[0].status || 'prospect',
                 painPoints: data[0].pain_points,
                 nextMeeting: data[0].meeting_date,
+                nextActionDate: data[0].next_action_date,
+                nextActionType: data[0].next_action_type,
+                responsibleName: data[0].responsible_name,
+                probability: data[0].probability,
                 timeline: data[0].history || [],
                 segment: data[0].segment || '',
                 website: data[0].website || ''
@@ -336,6 +349,10 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             origin: l.origin || '',
             pain_points: l.painPoints || '',
             meeting_date: l.nextMeeting || null,
+            next_action_date: l.nextActionDate || null,
+            next_action_type: l.nextActionType || 'follow-up',
+            responsible_name: l.responsibleName || '',
+            probability: l.probability || 0,
             history: l.timeline || [],
             segment: l.segment || '',
             website: l.website || '',
@@ -474,6 +491,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             type: m.type,
             status: m.status || 'scheduled',
             client_id: m.clientId || null,
+            lead_id: m.leadId || null,
             link: m.link || null,
             description: m.description || '',
             user_id: user?.id
@@ -493,6 +511,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             type: m.type,
             status: m.status,
             client_id: m.clientId,
+            lead_id: m.leadId || null,
             link: m.link || null,
             description: m.description || ''
         };
