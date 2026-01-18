@@ -11,6 +11,7 @@ import {
   Target,
 } from '@phosphor-icons/react';
 import { useVanguard } from '../context/VanguardContext';
+import { calculateStockMetrics, calculateFlowMetrics } from '../utils/metrics';
 
 import { KanbanColumn } from '../components/CRM/KanbanColumn';
 import { LeadFormModal } from '../components/CRM/LeadFormModal';
@@ -90,12 +91,32 @@ export const CRMModule: React.FC = () => {
   }, [draggedLead, updateLead]);
 
   const stats = useMemo(() => {
-    const totalPipeline = leads.reduce((acc, curr) => acc + curr.value, 0);
-    const closedValue = leads.filter(l => l.stage === 'fechado').reduce((acc, curr) => acc + curr.value, 0);
+    // 1. Receita Confirmada (Accumulated Stock of Won Deals)
+    const revenueMetrics = calculateStockMetrics(leads, 'value', l => l.stage === 'fechado');
+
+    // 2. Pipeline Total (Stock of Open Deals)
+    const pipelineMetrics = calculateStockMetrics(leads, 'value', l => l.stage !== 'fechado'); // Assuming non-closed are open
+
+    // 3. Conversão (Rate)
     const totalLeads = leads.length;
     const closedLeads = leads.filter(l => l.stage === 'fechado').length;
     const conversionRate = totalLeads > 0 ? ((closedLeads / totalLeads) * 100).toFixed(1) : '0.0';
-    return { totalPipeline, closedValue, closedLeads, conversionRate };
+
+    // 4. Ticket Médio (Average Deal Size) - Derived from Pipeline
+    // Current Logic uses ALL leads. Let's keep consistency or maybe just Open deals?
+    // "Ticket Médio" usually refers to Won deals or All deals. The previous code used ALL leads.
+    // Let's stick to ALL leads for now to avoid changing the number drastically, or switch to WON if it makes more sense.
+    // User asked for "standardization". Ticket Médio usually = Revenue / Count.
+    // Let's use the stats from Leads context directly for average.
+    const avgTicketValue = totalLeads > 0 ? (leads.reduce((acc, l) => acc + (Number(l.value) || 0), 0) / totalLeads) : 0;
+
+    return {
+      revenueMetrics,
+      pipelineMetrics,
+      closedLeads,
+      conversionRate,
+      avgTicketValue
+    };
   }, [leads]);
 
   if (loading) {
@@ -135,21 +156,37 @@ export const CRMModule: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard title="Receita Confirmada" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(stats.closedValue)} subtext={`${stats.closedLeads} contratos fechados`} icon={CheckCircle} color="green" />
-        <MetricCard title="Pipeline Total" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(stats.totalPipeline - stats.closedValue)} subtext="Forecast ponderado" icon={ChartBar} color="blue" />
+        <MetricCard
+          title="Receita Confirmada"
+          value={stats.revenueMetrics.formatted}
+          trend={stats.revenueMetrics.trend}
+          subtext={`${stats.closedLeads} contratos fechados`}
+          icon={CheckCircle}
+          color="green"
+        />
+        <MetricCard
+          title="Pipeline Total"
+          value={stats.pipelineMetrics.formatted}
+          trend={stats.pipelineMetrics.trend}
+          subtext="Forecast ponderado"
+          icon={ChartBar}
+          color="blue"
+        />
         {/* Métrica Dinâmica de Ticket Médio */}
         <MetricCard
           title="Ticket Médio"
-          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-            leads.length > 0
-              ? leads.reduce((acc, lead) => acc + (Number(lead.value) || 0), 0) / leads.length
-              : 0
-          )}
+          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.avgTicketValue)}
           subtext="Calculado via Pipeline"
           icon={CurrencyDollar}
           color="orange"
         />
-        <MetricCard title="Conversão" value={`${stats.conversionRate}%`} subtext="Lead p/ Cliente" icon={Target} color="purple" />
+        <MetricCard
+          title="Conversão"
+          value={`${stats.conversionRate}%`}
+          subtext="Lead p/ Cliente"
+          icon={Target}
+          color="purple"
+        />
       </div>
 
       <div className="flex-1 overflow-x-auto pb-2">

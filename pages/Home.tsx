@@ -23,6 +23,7 @@ import { Card, Button, Modal, Toast } from '../components/ui';
 import { Task, Lead, Client, SOPItem, Meeting } from '../types';
 import { useVanguard } from '../context/VanguardContext';
 import { useAuth } from '../context/AuthContext';
+import { calculateStockMetrics, calculateFlowMetrics } from '../utils/metrics';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -240,45 +241,51 @@ export const HomeModule = () => {
 
   // KPIs Calculados - Memoized
   const kpis = useMemo(() => {
-    const totalMRR = clients.reduce((acc, client) => acc + (Number(client.mrr) || 0), 0);
-    const activeClientsCount = clients.filter(c => c.status !== 'cancelado').length;
-    const totalLeads = leads.length;
+    // 1. MRR ATIVO (Stock) -> "mrr" field
+    const mrrMetrics = calculateStockMetrics(clients, 'mrr', (c) => c.status !== 'cancelado');
 
-    const calculateMetrics = (items: any[]) => {
-      const now = new Date();
-      const thisMonth = now.getMonth();
-      const thisYear = now.getFullYear();
+    // 2. CLIENTES ATIVOS (Stock) -> Count
+    const activeClientsMetrics = calculateStockMetrics(clients, undefined, (c) => c.status !== 'cancelado');
 
-      const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
-      const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+    // 3. PIPELINE (Stock) -> Count
+    const pipelineMetrics = calculateStockMetrics(leads); // Assuming all leads are "in pipeline" (open)
 
-      const currentItems = items.filter(i => {
-        const d = new Date(i.created_at);
-        return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
-      }).length;
-
-      const previousItems = items.filter(i => {
-        const d = new Date(i.created_at);
-        return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
-      }).length;
-
-      if (previousItems === 0) return { change: '0%', trend: 'neutral' as const, count: currentItems };
-      const change = ((currentItems - previousItems) / previousItems) * 100;
-      return {
-        change: `${Math.abs(Math.round(change))}%`,
-        trend: change >= 0 ? 'up' as const : 'down' as const,
-        count: currentItems
-      };
-    };
-
-    const clientMetrics = calculateMetrics(clients);
-    const leadMetrics = calculateMetrics(leads);
+    // 4. NOVOS CLIENTES (Flow) -> Count created this month
+    const newClientsMetrics = calculateFlowMetrics(clients);
 
     return [
-      { label: 'MRR ATIVO', value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalMRR), change: clientMetrics.change, trend: clientMetrics.trend, icon: ChartLineUp, target: 'CLIENTS' as const },
-      { label: 'CLIENTES ATIVOS', value: activeClientsCount.toString(), change: clientMetrics.change, trend: clientMetrics.trend, icon: Users, target: 'CLIENTS' as const },
-      { label: 'LEADS NO PIPELINE', value: totalLeads.toString(), change: leadMetrics.change, trend: leadMetrics.trend, icon: Funnel, target: 'CRM' as const },
-      { label: 'NOVOS CLIENTES', value: `+${clientMetrics.count}`, change: clientMetrics.change, trend: clientMetrics.trend, icon: UserPlus, target: 'CLIENTS' as const },
+      {
+        label: 'MRR ATIVO',
+        value: mrrMetrics.formatted,
+        change: mrrMetrics.change,
+        trend: mrrMetrics.trend,
+        icon: ChartLineUp,
+        target: 'CLIENTS' as const
+      },
+      {
+        label: 'CLIENTES ATIVOS',
+        value: activeClientsMetrics.formatted,
+        change: activeClientsMetrics.change,
+        trend: activeClientsMetrics.trend,
+        icon: Users,
+        target: 'CLIENTS' as const
+      },
+      {
+        label: 'LEADS NO PIPELINE',
+        value: pipelineMetrics.formatted,
+        change: pipelineMetrics.change,
+        trend: pipelineMetrics.trend,
+        icon: Funnel,
+        target: 'CRM' as const
+      },
+      {
+        label: 'NOVOS CLIENTES',
+        value: `+${newClientsMetrics.value}`,
+        change: newClientsMetrics.change,
+        trend: newClientsMetrics.trend,
+        icon: UserPlus,
+        target: 'CLIENTS' as const
+      },
     ];
   }, [clients, leads]);
 

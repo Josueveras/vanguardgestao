@@ -7,6 +7,7 @@ import {
   CurrencyDollar,
   Users,
   TrendUp,
+  TrendDown,
   WarningCircle,
   CheckCircle,
   Rocket,
@@ -19,8 +20,9 @@ import {
 import { Modal, Toast } from '../components/ui';
 import { ClientProfile } from './ClientProfile';
 import { useVanguard } from '../context/VanguardContext';
+import { calculateStockMetrics } from '../utils/metrics';
 
-const ClientMetricCard = ({ title, value, icon: Icon, trend, type = 'neutral' }: any) => {
+const ClientMetricCard = ({ title, metric, icon: Icon, type = 'neutral', prefix = '' }: any) => {
   const types = {
     neutral: 'text-vblack',
     success: 'text-green-600',
@@ -36,15 +38,16 @@ const ClientMetricCard = ({ title, value, icon: Icon, trend, type = 'neutral' }:
         <Icon size={20} className={types[type as keyof typeof types]} weight="fill" />
       </div>
       <div>
-        <h3 className="text-3xl font-bold text-vblack tracking-tight">{value}</h3>
-        {trend && (
-          <div className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-[10px] font-bold ${trend.includes('+') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+        <h3 className="text-3xl font-bold text-vblack tracking-tight">{prefix}{metric.formatted || metric.value}</h3>
+        {metric.trend && (
+          <div className={`inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-[10px] font-bold ${metric.trend === 'up' ? 'bg-green-50 text-green-700' :
+            metric.trend === 'down' ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600'
             }`}>
-            <TrendUp weight="bold" />
-            {trend}
+            {metric.trend === 'up' ? <TrendUp weight="bold" /> : metric.trend === 'down' ? <TrendDown weight="bold" /> : <div className="w-2 h-0.5 bg-gray-400 rounded-full" />}
+            {metric.change}
           </div>
         )}
-        {!trend && type === 'warning' && (
+        {!metric.trend && type === 'warning' && (
           <div className="text-xs text-red-600 mt-2 font-medium">Atenção requerida</div>
         )}
       </div>
@@ -149,11 +152,23 @@ export const ClientsModule: React.FC = () => {
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Metrics Calculation
-  const totalMRR = clients.reduce((acc, client) => acc + client.mrr, 0);
+  // Metrics Calculation using Utils
+  const mrrMetrics = calculateStockMetrics(clients, 'mrr', c => c.status !== 'cancelado');
+  const activeClientsMetrics = calculateStockMetrics(clients, undefined, c => c.status !== 'cancelado');
+
+  // Risk Count (Stock of Risk)
+  const riskMetrics = calculateStockMetrics(clients, undefined, c => c.status === 'em_risco');
+
+  // Avg Ticket (Simulated Trend based on MRR growth for now, or just static)
   const activeCount = clients.filter(c => c.status === 'ativo' || c.status === 'onboarding').length;
-  const avgTicket = clients.length > 0 ? totalMRR / clients.length : 0;
-  const riskCount = clients.filter(c => c.status === 'em_risco').length;
+  // If we want trend for Avg Ticket, we'd need history. For now, let's keep it static or use MRR trend as proxy.
+  const avgTicketValue = activeCount > 0 ? (mrrMetrics.value / activeCount) : 0;
+  const avgTicketMetrics = {
+    value: avgTicketValue,
+    formatted: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(avgTicketValue),
+    trend: 'neutral' as const,
+    change: '0%'
+  };
 
   const filteredClients = clients.filter(client => {
     const matchesFilter = filter === 'all' || client.status === filter;
@@ -332,25 +347,25 @@ export const ClientsModule: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <ClientMetricCard
           title="MRR Total"
-          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(totalMRR)}
+          metric={mrrMetrics}
           icon={CurrencyDollar}
           type="success"
         />
         <ClientMetricCard
           title="Clientes Ativos"
-          value={activeCount}
+          metric={activeClientsMetrics}
           icon={Users}
           type="info"
         />
         <ClientMetricCard
           title="Ticket Médio"
-          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(avgTicket)}
+          metric={avgTicketMetrics}
           icon={TrendUp}
           type="purple"
         />
         <ClientMetricCard
           title="Em Risco (Churn)"
-          value={riskCount}
+          metric={riskMetrics}
           icon={WarningCircle}
           type="warning"
         />

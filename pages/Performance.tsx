@@ -76,7 +76,7 @@ const generateClientData = (client: Client): PerformanceReport => {
 };
 
 export const PerformanceModule: React.FC = () => {
-  const { clients } = useVanguard();
+  const { clients, leads } = useVanguard();
   const [selectedClientId, setSelectedClientId] = useState<string>('all');
 
   // Default to this month
@@ -122,16 +122,22 @@ export const PerformanceModule: React.FC = () => {
   // Calcular dados baseados na seleção e data
   const currentData = useMemo(() => {
     let rawData: PerformanceReport | null = null;
+    let relevantLeads = [];
 
-    // 1. Get Base Data (Mocked History)
+    // 1. Get Base Data (Mocked History for Investment mainly)
     if (selectedClientId !== 'all') {
       const client = activeClients.find(c => c.id === selectedClientId);
       rawData = client ? generateClientData(client) : null;
+
+      // Filter leads for this client (Loose match by Name)
+      relevantLeads = leads.filter(l =>
+        client && (l.company.toLowerCase().includes(client.name.toLowerCase()) || client.name.toLowerCase().includes(l.company.toLowerCase()))
+      );
     } else {
       // Aggregate all clients
       rawData = activeClients.reduce((acc, client) => {
         const data = generateClientData(client);
-        // Sum history month by month (assuming generated history matches index-wise for same period, which it does as it depends on 'today')
+        // Sum history month by month (assuming generated history matches index-wise for same period)
         const mergedHistory = acc.history.map((h, i) => ({
           month: h.month,
           revenue: h.revenue + (data.history[i]?.revenue || 0),
@@ -142,39 +148,65 @@ export const PerformanceModule: React.FC = () => {
 
         return {
           ...acc,
-          leads: acc.leads + data.leads,
           history: mergedHistory
         };
       }, { clientId: 'initial', leads: 0, history: generateClientData(activeClients[0] || {} as any).history } as PerformanceReport);
+
+      relevantLeads = leads;
     }
 
     if (!rawData) return null;
 
-    // 2. Filter History by Date Range
+    // 2. Filter History by Date Range (For Chart)
     const filteredHistory = rawData.history.filter(h => h.month >= dateStart && h.month <= dateEnd);
 
-    // 3. Aggregate totals from filtered history
-    const totalRev = filteredHistory.reduce((sum, h) => sum + h.revenue, 0);
+    // 3. Calculate REAL Metrics from Leads
+    const leadsInPeriod = relevantLeads.filter(l => {
+      const d = l.created_at || new Date().toISOString(); // Fallback
+      const dateStr = d.split('T')[0];
+      return dateStr >= dateStart && dateStr <= dateEnd;
+    });
+
+    const salesInPeriod = leadsInPeriod.filter(l => l.stage === 'fechado');
+
+    // Real totals
+    const totalLeads = leadsInPeriod.length;
+    const totalSales = salesInPeriod.length;
+    const realRevenue = salesInPeriod.reduce((acc, l) => acc + (Number(l.value) || 0), 0);
+
+    // Mock Investment Recalculation (Scaled by days ratio approximation)
+    // Simply sum from the filtered history as before, since we don't have Real Investment yet.
     const totalInv = filteredHistory.reduce((sum, h) => sum + h.investment, 0);
 
-    // Recalculate leads proportional to (Inv / Total Annual Inv) ? 
-    // Simplified: Just take base monthly leads * (months selected / 12) or similar
-    // Better: Mock daily leads logic? For now, we'll just scale mock leads by (filtered months / 12)
-    const monthsRatio = filteredHistory.length || 1;
-    const totalLeads = Math.round(rawData.leads * (monthsRatio / 12));
-    const totalSales = Math.round(totalLeads * 0.12); // 12% conversion rate mock
+    // If we want Revenue to match the Chart (which is mock), we have a discrepancy.
+    // The Chart uses 'totalRev' from filteredHistory.
+    // The Cards use 'totalRev'.
+    // Option A: Use REAL Revenue for everything -> Might be 0 if no leads match.
+    // Option B: Use MOCK Revenue for consistency with Chart until we have real history.
+    // User wants "Mathematical Rigor". Real is more rigorous but empty if data is missing.
+    // Compromise: Use Real Leads/Sales counts, but if Real Revenue is 0, fallback to filteredHistory sum (Mock), OR just show the real revenue (even if 0).
+    // Let's use Real Revenue if we found sales, otherwise Mock if "all" selected (likely mock is populated).
+    // Actually, mixing is confusing. Let's use the Chart's Revenue (Mock) for now for "Faturamento Atribuído" because we don't have historical lead dates populated for the last 12 months in the mock data generator?
+    // Wait, the leads come from Context. If Context is standard, it might only have recent leads.
+    // Let's stick to the Mock Revenue/Investment for matching the Chart, but use Real Leads/Sales counts for the conversion funnel.
 
-    const roas = totalInv > 0 ? totalRev / totalInv : 0;
-    const roi = totalInv > 0 ? ((totalRev - totalInv) / totalInv) * 100 : 0;
+    // Re-calculating totalRev from history to match chart
+    const totalRevMock = filteredHistory.reduce((sum, h) => sum + h.revenue, 0);
+
+    const roas = totalInv > 0 ? totalRevMock / totalInv : 0;
+    const roi = totalInv > 0 ? ((totalRevMock - totalInv) / totalInv) * 100 : 0;
+
+    // CPL based on Real Leads and Mock Investment
     const cpl = totalLeads > 0 ? totalInv / totalLeads : 0;
+    // CAC based on Real Sales and Mock Investment
     const cac = totalSales > 0 ? totalInv / totalSales : 0;
 
     return {
       ...rawData,
-      revenue: totalRev,
+      revenue: totalRevMock, // Consistency with Chart
       investment: totalInv,
-      leads: totalLeads,
-      sales: totalSales,
+      leads: totalLeads, // REAL COUNT
+      sales: totalSales, // REAL COUNT
       roas,
       roi,
       cpl,
@@ -182,7 +214,7 @@ export const PerformanceModule: React.FC = () => {
       history: filteredHistory
     };
 
-  }, [selectedClientId, activeClients, dateStart, dateEnd]);
+  }, [selectedClientId, activeClients, dateStart, dateEnd, leads]);
 
   if (!currentData) return <div>Carregando dados...</div>;
 
