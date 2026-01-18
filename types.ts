@@ -223,6 +223,8 @@ export interface Meeting {
   start_time: string; // ISO String
   end_time?: string; // ISO String
   type: 'Google Meet' | 'Zoom' | 'Interno' | 'Presencial' | 'Outro';
+  status?: 'scheduled' | 'completed' | 'canceled';
+  clientId?: string;
   link?: string;
   description?: string;
   user_id?: string;

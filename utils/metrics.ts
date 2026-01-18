@@ -23,6 +23,7 @@ export const formatCurrency = (value: number) => {
  * Helper: Format Percent
  */
 export const formatPercent = (value: number) => {
+    if (!isFinite(value)) return '0%';
     return `${value.toFixed(1)}%`;
 };
 
@@ -30,7 +31,9 @@ export const formatPercent = (value: number) => {
  * Core Logic: Calculate "Stock" Trend (Cumulative)
  * Use for: Active MRR, Active Clients, Pipeline Size.
  * Logic: Current Total vs (Current Total - Created This Month).
- * This assumes "Active" means they are currently present, and we subtract NEW ones to estimate previous stock.
+ * Note: This implements "Net Growth" logic. It assumes Previous = Current - New.
+ * It strictly ignores Churn because we don't have cancellation dates. 
+ * This is the safest approximation for "Growth this month".
  */
 export const calculateStockMetrics = (
     items: any[],
@@ -45,9 +48,8 @@ export const calculateStockMetrics = (
     const activeItems = filterActive ? items.filter(filterActive) : items;
 
     // 2. Identify newly added items this month (Acquisition)
-    // These are the ones contributing to growth this month.
     const newItemsThisMonth = activeItems.filter(i => {
-        const d = new Date(i.created_at || i.createdAt || now.toISOString()); // Fallback to now if no date, but ideally needs date
+        const d = new Date(i.created_at || i.createdAt || now.toISOString());
         return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
     });
 
@@ -59,10 +61,7 @@ export const calculateStockMetrics = (
         currentValue = activeItems.length;
     }
 
-    // 4. Calculate Previous Value (Stock at start of month)
-    // Previous = Current - New Growth
-    // Note: This ignores Churn for simplicity unless we have a 'cancelled_at' date. 
-    // Ideally: Previous = Current - New + Churned
+    // 4. Calculate "Growth Value" (Accession)
     let growthValue = 0;
     if (valueField) {
         growthValue = newItemsThisMonth.reduce((acc, item) => acc + (Number(item[valueField]) || 0), 0);
@@ -70,27 +69,12 @@ export const calculateStockMetrics = (
         growthValue = newItemsThisMonth.length;
     }
 
+    // 5. Estimate Previous Value (Baseline)
+    // Baseline = End State - Growth
     const previousValue = currentValue - growthValue;
 
-    // 5. Calculate Trend
-    let changePercent = 0;
-    if (previousValue > 0) {
-        changePercent = ((currentValue - previousValue) / previousValue) * 100;
-    } else if (currentValue > 0) {
-        changePercent = 100; // 0 -> X is infinite growth, treating as 100%
-    } else {
-        changePercent = 0; // 0 -> 0
-    }
-
-    const trend: Trend = changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : 'neutral';
-
-    return {
-        value: currentValue,
-        formatted: valueField ? formatCurrency(currentValue) : currentValue.toString(),
-        change: `${changePercent > 0 ? '+' : ''}${Math.round(changePercent)}%`,
-        trend,
-        numericTrend: changePercent
-    };
+    // 6. Calculate Trend
+    return calculateSafeTrend(currentValue, previousValue, !!valueField);
 };
 
 /**
@@ -130,23 +114,38 @@ export const calculateFlowMetrics = (
         previousValue = previousItems.length;
     }
 
+    return calculateSafeTrend(currentValue, previousValue, !!valueField);
+};
+
+/**
+ * Shared Trend Calculation Logic (Safe)
+ */
+const calculateSafeTrend = (current: number, previous: number, isCurrency: boolean): MetricResult => {
     let changePercent = 0;
-    if (previousValue > 0) {
-        changePercent = ((currentValue - previousValue) / previousValue) * 100;
-    } else if (currentValue > 0) {
-        changePercent = 100;
+
+    if (previous > 0) {
+        changePercent = ((current - previous) / previous) * 100;
+    } else if (current > 0) {
+        // From 0 to Something: Technically infinite growth, but we cap/handle gracefully
+        changePercent = 100; 
+    } else {
+        // 0 to 0
+        changePercent = 0;
     }
+
+    // Safety Catch for NaN/Infinity
+    if (!isFinite(changePercent)) changePercent = 0;
 
     const trend: Trend = changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : 'neutral';
 
     return {
-        value: currentValue,
-        formatted: valueField ? formatCurrency(currentValue) : currentValue.toString(),
+        value: current,
+        formatted: isCurrency ? formatCurrency(current) : current.toString(),
         change: `${changePercent > 0 ? '+' : ''}${Math.round(changePercent)}%`,
         trend,
         numericTrend: changePercent
     };
-};
+}
 
 /**
  * Helper: Aggregate Generic Field

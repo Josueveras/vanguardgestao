@@ -46,7 +46,7 @@ export const HomeModule = () => {
   const [quickLead, setQuickLead] = useState<Partial<Lead>>({ company: '', value: 0 });
   const [quickClient, setQuickClient] = useState<Partial<Client>>({ name: '', mrr: 0 });
   const [quickNote, setQuickNote] = useState({ title: '', content: '' });
-  const [quickMeeting, setQuickMeeting] = useState({ title: '', time: '', type: 'Google Meet' });
+  const [quickMeeting, setQuickMeeting] = useState({ title: '', time: '', type: 'Google Meet', clientId: '' });
 
   // 1. Minhas Prioridades (Filtradas e Ordenadas)
   const priorities = useMemo(() => {
@@ -69,13 +69,17 @@ export const HomeModule = () => {
 
     return meetings
       .filter(m => isToday(m.start_time))
-      .map(m => ({
-        id: m.id,
-        time: new Date(m.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        title: m.title,
-        type: m.type,
-        isMeeting: true
-      }));
+      .map(m => {
+        const clientName = m.clientId ? clients.find(c => c.id === m.clientId)?.name : null;
+        return {
+          id: m.id,
+          time: new Date(m.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          title: m.title,
+          sub: clientName, // New field for UI
+          type: m.type,
+          isMeeting: true
+        };
+      });
   }, [meetings]);
 
   const [showAllAgenda, setShowAllAgenda] = useState(false);
@@ -213,11 +217,13 @@ export const HomeModule = () => {
         title: quickMeeting.title,
         start_time: meetingDate.toISOString(),
         type: quickMeeting.type as any,
+        clientId: quickMeeting.clientId || undefined,
+        status: 'scheduled',
         description: 'Agendado via Home'
       });
       setToast({ msg: 'Compromisso agendado!', type: 'success' });
       setActiveModal(null);
-      setQuickMeeting({ title: '', time: '', type: 'Google Meet' });
+      setQuickMeeting({ title: '', time: '', type: 'Google Meet', clientId: '' });
     } catch (e) {
       setToast({ msg: 'Erro ao agendar compromisso', type: 'error' });
     } finally {
@@ -367,6 +373,10 @@ export const HomeModule = () => {
             <option value="Interno">Interno</option>
             <option value="Zoom">Zoom</option>
             <option value="Presencial">Presencial</option>
+          </select>
+          <select className="w-full border p-2 rounded text-sm bg-white" value={quickMeeting.clientId} onChange={e => setQuickMeeting({ ...quickMeeting, clientId: e.target.value })}>
+            <option value="">Vincular Cliente (Opcional)</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <Button onClick={handleSaveQuickMeeting} className="w-full" disabled={isSaving}>
             {isSaving ? 'Agendando...' : 'Agendar'}
@@ -546,6 +556,7 @@ export const HomeModule = () => {
                       <div className={`absolute left-0 top-1.5 w-2 h-2 rounded-full ${item.isTask ? 'bg-blue-400' : 'bg-vred'}`}></div>
                       <p className={`text-xs font-bold mb-0.5 ${item.isTask ? 'text-blue-500' : 'text-vred'}`}>{item.time}</p>
                       <h5 className="text-sm font-bold text-vblack leading-tight">{item.title}</h5>
+                      {item.sub && <p className="text-xs text-blue-600 font-semibold mb-0.5">{item.sub}</p>}
                       <div className="flex items-center gap-1.5 mt-1 text-gray-500 text-xs">
                         {item.isTask ? <CheckSquare size={12} weight="fill" /> : <VideoCamera size={12} weight="fill" />}
                         {item.type}

@@ -1,11 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
-import { Client, Task, ContentItem, ClientLink, ClientStrategy, Campaign, ChecklistItem, ClientSalesSnapshot } from '../types';
+import { Client, Task, ContentItem, ClientLink, ClientStrategy, Campaign, ChecklistItem, ClientSalesSnapshot, Meeting } from '../types';
 import {
     ArrowLeft, Target, Strategy, CheckCircle, ChartLineUp, Link as LinkIcon,
     CalendarCheck, Check, PencilSimple, Plus, Trash, ArrowSquareOut,
     TrendUp, CurrencyDollar, Users, RocketLaunch, MagicWand, Files, FloppyDisk,
-    CircleNotch, ListChecks, Megaphone, MonitorPlay, ImageSquare, X, Play
+    CircleNotch, ListChecks, Megaphone, MonitorPlay, ImageSquare, X, Play, Clock
 } from '@phosphor-icons/react';
 import { Toast, Modal } from '../components/ui';
 import { CampaignFormModal } from '../components/CampaignFormModal';
@@ -107,10 +107,12 @@ interface ClientProfileProps {
     content: ContentItem[];
     campaigns: Campaign[];
     onAddCampaign: (c: Omit<Campaign, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+    meetings: Meeting[];
+    onAddMeeting: (m: Omit<Meeting, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
 }
 
-export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, onUpdateClient, tasks, content, campaigns, onAddCampaign }) => {
-    const [activeTab, setActiveTab] = useState<'overview' | 'strategy' | 'operation' | 'tasks' | 'campaigns' | 'performance' | 'links'>('overview');
+export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, onUpdateClient, tasks, content, campaigns, onAddCampaign, meetings, onAddMeeting }) => {
+    const [activeTab, setActiveTab] = useState<'overview' | 'strategy' | 'operation' | 'tasks' | 'campaigns' | 'performance' | 'links' | 'meetings'>('overview');
     const [isEditingStrategy, setIsEditingStrategy] = useState(false);
     const [localStrategy, setLocalStrategy] = useState<ClientStrategy>(client.strategy || {});
     const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
@@ -313,7 +315,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
             {/* Navigation Tabs */}
             <div className="bg-white border-b border-gray-200 px-6 overflow-x-auto flex-shrink-0">
                 <div className="flex gap-8">
-                    {['overview', 'strategy', 'operation', 'tasks', 'campaigns', 'performance', 'links'].map((tab) => (
+                    {['overview', 'strategy', 'operation', 'tasks', 'campaigns', 'performance', 'links', 'meetings'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
@@ -326,7 +328,8 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                             {tab === 'campaigns' && <Megaphone size={18} weight="duotone" />}
                             {tab === 'performance' && <ChartLineUp size={18} weight="duotone" />}
                             {tab === 'links' && <LinkIcon size={18} weight="duotone" />}
-                            {tab === 'overview' ? 'Visão Geral' : tab === 'operation' ? 'Operação' : tab === 'strategy' ? 'Estratégia' : tab === 'tasks' ? 'Tarefas' : tab === 'campaigns' ? 'Campanhas' : tab === 'performance' ? 'Performance' : 'Links'}
+                            {tab === 'meetings' && <Clock size={18} weight="duotone" />}
+                            {tab === 'overview' ? 'Visão Geral' : tab === 'operation' ? 'Operação' : tab === 'strategy' ? 'Estratégia' : tab === 'tasks' ? 'Tarefas' : tab === 'campaigns' ? 'Campanhas' : tab === 'performance' ? 'Performance' : tab === 'links' ? 'Links' : 'Reuniões'}
                         </button>
                     ))}
                 </div>
@@ -687,6 +690,101 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                                 </div>
                             )}
                         </div>
+                    </div>
+                )}
+
+                {/* 8. REUNIÕES */}
+                {activeTab === 'meetings' && (
+                    <MeetingsTab
+                        client={client}
+                        meetings={meetings.filter(m => m.clientId === client.id)}
+                        onAddMeeting={onAddMeeting}
+                    />
+                )}
+            </div>
+        </div>
+    );
+};
+
+const MeetingsTab: React.FC<{ client: Client, meetings: Meeting[], onAddMeeting: (m: Omit<Meeting, 'id' | 'user_id' | 'created_at'>) => Promise<void> }> = ({ client, meetings, onAddMeeting }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [newMeeting, setNewMeeting] = useState({ title: '', date: '', time: '', type: 'Google Meet', description: '' });
+
+    const handleSave = async () => {
+        if (!newMeeting.title || !newMeeting.date || !newMeeting.time) return;
+
+        const [year, month, day] = newMeeting.date.split('-').map(Number);
+        const [hours, minutes] = newMeeting.time.split(':').map(Number);
+        const start = new Date(year, month - 1, day, hours, minutes);
+
+        await onAddMeeting({
+            title: newMeeting.title,
+            start_time: start.toISOString(),
+            type: newMeeting.type as any,
+            clientId: client.id,
+            status: 'scheduled',
+            description: newMeeting.description
+        });
+        setIsModalOpen(false);
+        setNewMeeting({ title: '', date: '', time: '', type: 'Google Meet', description: '' });
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-8">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Agenda & Reuniões</h3>
+                    <p className="text-sm text-gray-500 mt-1">Histórico de encontros e próximos agendamentos.</p>
+                </div>
+                <button onClick={() => setIsModalOpen(true)} className="bg-vblack text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-800 shadow-lg transition-colors">
+                    <Plus weight="bold" size={18} /> Agendar Reunião
+                </button>
+            </div>
+
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Agendar Reunião" size="sm">
+                <div className="p-6 space-y-4">
+                    <input className="w-full border p-3 rounded-lg text-sm" placeholder="Título da Reunião" value={newMeeting.title} onChange={e => setNewMeeting({ ...newMeeting, title: e.target.value })} />
+                    <div className="flex gap-4">
+                        <input type="date" className="w-full border p-3 rounded-lg text-sm" value={newMeeting.date} onChange={e => setNewMeeting({ ...newMeeting, date: e.target.value })} />
+                        <input type="time" className="w-full border p-3 rounded-lg text-sm" value={newMeeting.time} onChange={e => setNewMeeting({ ...newMeeting, time: e.target.value })} />
+                    </div>
+                    <select className="w-full border p-3 rounded-lg text-sm bg-white" value={newMeeting.type} onChange={e => setNewMeeting({ ...newMeeting, type: e.target.value })}>
+                        <option value="Google Meet">Google Meet</option>
+                        <option value="Zoom">Zoom</option>
+                        <option value="Presencial">Presencial</option>
+                        <option value="Interno">Interno</option>
+                    </select>
+                    <textarea className="w-full border p-3 rounded-lg text-sm h-24 resize-none" placeholder="Pauta / Descrição (Opcional)" value={newMeeting.description} onChange={e => setNewMeeting({ ...newMeeting, description: e.target.value })} />
+                    <button onClick={handleSave} className="w-full bg-vblack text-white py-3 rounded-lg font-bold hover:bg-gray-800">Confirmar Agendamento</button>
+                </div>
+            </Modal>
+
+            <div className="space-y-4">
+                {meetings.length > 0 ? meetings.map(m => (
+                    <div key={m.id} className="bg-white p-5 rounded-xl border border-gray-200 flex items-center justify-between hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-5">
+                            <div className="flex flex-col items-center bg-gray-50 border border-gray-100 rounded-lg p-2 min-w-[60px]">
+                                <span className="text-xs font-bold text-gray-500 uppercase">{new Date(m.start_time).toLocaleDateString('pt-BR', { month: 'short' })}</span>
+                                <span className="text-xl font-bold text-gray-900">{new Date(m.start_time).getDate()}</span>
+                            </div>
+                            <div>
+                                <h4 className="text-base font-bold text-gray-900">{m.title}</h4>
+                                <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                                    <span className="flex items-center gap-1"><Clock size={14} /> {new Date(m.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                    <span>{m.type}</span>
+                                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${m.status === 'completed' ? 'bg-green-100 text-green-700' : m.status === 'canceled' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{m.status === 'scheduled' ? 'Agendada' : m.status}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button className="text-sm font-bold text-blue-600 hover:underline">Detalhes</button>
+                    </div>
+                )) : (
+                    <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
+                        <Clock size={40} className="text-gray-300 mx-auto mb-4" weight="duotone" />
+                        <p className="font-bold text-gray-900">Nenhuma reunião agendada</p>
+                        <p className="text-sm text-gray-500 mt-1">Utilize o botão acima para marcar um novo compromisso.</p>
                     </div>
                 )}
             </div>

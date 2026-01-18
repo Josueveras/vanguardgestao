@@ -152,7 +152,11 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             setCampaigns(campaignsData || []);
             setSops(mappedSops as SOPItem[]);
             setContent(mappedContent as ContentItem[]);
-            setMeetings((meetingsData || []) as Meeting[]);
+            setMeetings((meetingsData || []).map(m => ({
+                ...m,
+                clientId: m.client_id,
+                status: m.status || 'scheduled'
+            })) as Meeting[]);
 
             if (perfData) {
                 const mappedPerformance: PerformanceReport = {
@@ -468,6 +472,8 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             start_time: m.start_time,
             end_time: m.end_time || null,
             type: m.type,
+            status: m.status || 'scheduled',
+            client_id: m.clientId || null,
             link: m.link || null,
             description: m.description || '',
             user_id: user?.id
@@ -485,10 +491,13 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             start_time: m.start_time,
             end_time: m.end_time || null,
             type: m.type,
+            status: m.status,
+            client_id: m.clientId,
             link: m.link || null,
             description: m.description || ''
         };
         const { error } = await supabase.from('meetings').update(payload).eq('id', m.id);
+
         if (!error) setMeetings(prev => prev.map(item => item.id === m.id ? m : item).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()));
     };
 
