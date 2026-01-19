@@ -151,8 +151,8 @@ export const ClientsModule: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   // Metrics Calculation using Utils
-  const mrrMetrics = calculateStockMetrics(clients, 'mrr', c => c.status !== 'cancelado');
-  const activeClientsMetrics = calculateStockMetrics(clients, undefined, c => c.status !== 'cancelado');
+  const mrrMetrics = calculateStockMetrics(clients, 'mrr', c => c.status !== 'cancelado' && c.status !== 'arquivado');
+  const activeClientsMetrics = calculateStockMetrics(clients, undefined, c => c.status !== 'cancelado' && c.status !== 'arquivado');
 
   // Risk Count (Stock of Risk)
   const riskMetrics = calculateStockMetrics(clients, undefined, c => c.status === 'em_risco');
@@ -169,7 +169,7 @@ export const ClientsModule: React.FC = () => {
   };
 
   const filteredClients = clients.filter(client => {
-    const matchesFilter = filter === 'all' || client.status === filter;
+    const matchesFilter = (filter === 'all' ? client.status !== 'arquivado' : client.status === filter);
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesFilter && matchesSearch;
   });

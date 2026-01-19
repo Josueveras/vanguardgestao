@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Client, Task, ContentItem, ClientLink, ClientStrategy, Campaign, ChecklistItem, ClientSalesSnapshot, Meeting } from '../types';
+import { Client, Task, Lead, ContentItem, ClientLink, ClientStrategy, Campaign, ChecklistItem, ClientSalesSnapshot, Meeting } from '../types';
 import {
     ArrowLeft, Target, Strategy, CheckCircle, ChartLineUp, Link as LinkIcon,
     CalendarCheck, Check, PencilSimple, Plus, Trash, ArrowSquareOut,
@@ -9,6 +9,8 @@ import {
 } from '@phosphor-icons/react';
 import { Toast, Modal } from '../components/ui';
 import { CampaignFormModal } from '../components/CampaignFormModal';
+import { MeetingFormModal } from '../components/MeetingFormModal';
+import { useVanguard } from '../context/VanguardContext';
 
 // --- Sub-components (Memoized) ---
 
@@ -112,6 +114,8 @@ interface ClientProfileProps {
 }
 
 export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, onUpdateClient, tasks, content, campaigns, onAddCampaign, meetings, onAddMeeting }) => {
+    const { archiveClient, deleteClient, updateMeeting, deleteMeeting, leads } = useVanguard();
+
     const [activeTab, setActiveTab] = useState<'overview' | 'strategy' | 'operation' | 'tasks' | 'campaigns' | 'performance' | 'links' | 'meetings'>('overview');
     const [isEditingStrategy, setIsEditingStrategy] = useState(false);
     const [localStrategy, setLocalStrategy] = useState<ClientStrategy>(client.strategy || {});
@@ -146,6 +150,11 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
     const clientTasks = useMemo(() => tasks.filter(t => t.project === client.name), [tasks, client.name]);
     const clientContent = useMemo(() => content.filter(c => c.client === client.name), [content, client.name]);
     const clientCampaigns = useMemo(() => campaigns.filter(c => c.clientId === client.id), [campaigns, client.id]);
+    const clientMeetings = useMemo(() => meetings.filter(m => m.clientId === client.id).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()), [meetings, client.id]);
+
+    const nextMeeting = useMemo(() => {
+        return clientMeetings.find(m => new Date(m.start_time) >= new Date() && m.status === 'scheduled');
+    }, [clientMeetings]);
 
     const checklistProgress = useMemo(() => {
         if (checklist.length === 0) return 0;
@@ -249,6 +258,20 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
         return 'text-red-500 border-red-200';
     };
 
+    const handleArchive = async () => {
+        if (window.confirm("Deseja realmente arquivar este cliente? Ele não aparecerá mais na carteira ativa.")) {
+            await archiveClient(client.id);
+            onBack();
+        }
+    };
+
+    const handleDelete = async () => {
+        if (window.confirm("EXCLUSÃO DEFINITIVA: Deseja apagar todos os dados deste cliente? Esta ação não pode ser desfeita.")) {
+            await deleteClient(client.id);
+            onBack();
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-[#f8f9fa] overflow-y-auto rounded-xl">
             {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
@@ -300,6 +323,12 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                     </div>
 
                     <div className="flex gap-3">
+                        <button onClick={handleArchive} className="p-2.5 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors border border-gray-200" title="Arquivar Cliente">
+                            <Clock size={20} weight="bold" />
+                        </button>
+                        <button onClick={handleDelete} className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-gray-200" title="Excluir Cliente">
+                            <Trash size={20} weight="bold" />
+                        </button>
                         {client.links?.find(l => l.category === 'CRM') && (
                             <a href={client.links.find(l => l.category === 'CRM')?.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 font-bold rounded-lg hover:bg-blue-100 transition-colors text-sm border border-blue-100">
                                 <Users weight="fill" size={18} /> CRM
@@ -456,13 +485,17 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
 
                             <div className="mb-8 bg-red-50 border border-red-100 rounded-xl p-5">
                                 <p className="text-xs font-bold text-red-600 uppercase mb-2 tracking-wide">Ação Crítica</p>
-                                <p className="text-base font-bold text-gray-900 leading-snug">
-                                    Reunião de Alinhamento Semanal
-                                    <br />
-                                    <span className="text-xs font-normal text-gray-500">
-                                        Segunda-feira, 14:00
-                                    </span>
-                                </p>
+                                {nextMeeting ? (
+                                    <p className="text-base font-bold text-gray-900 leading-snug">
+                                        {nextMeeting.title}
+                                        <br />
+                                        <span className="text-xs font-normal text-gray-500">
+                                            {new Date(nextMeeting.start_time).toLocaleDateString('pt-BR', { weekday: 'long' })}, {new Date(nextMeeting.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    </p>
+                                ) : (
+                                    <p className="text-sm font-medium text-gray-600">Sem reuniões agendadas.</p>
+                                )}
                             </div>
 
                             <div className="flex-1 overflow-y-auto">
@@ -697,8 +730,11 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
                 {activeTab === 'meetings' && (
                     <MeetingsTab
                         client={client}
-                        meetings={meetings.filter(m => m.clientId === client.id)}
+                        meetings={clientMeetings}
                         onAddMeeting={onAddMeeting}
+                        onUpdateMeeting={updateMeeting}
+                        onDeleteMeeting={deleteMeeting}
+                        leads={leads}
                     />
                 )}
             </div>
@@ -706,27 +742,34 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
     );
 };
 
-const MeetingsTab: React.FC<{ client: Client, meetings: Meeting[], onAddMeeting: (m: Omit<Meeting, 'id' | 'user_id' | 'created_at'>) => Promise<void> }> = ({ client, meetings, onAddMeeting }) => {
+const MeetingsTab: React.FC<{ client: Client, meetings: Meeting[], onAddMeeting: any, onUpdateMeeting: any, onDeleteMeeting: any, leads: Lead[] }> = ({ client, meetings, onAddMeeting, onUpdateMeeting, onDeleteMeeting, leads }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newMeeting, setNewMeeting] = useState({ title: '', date: '', time: '', type: 'Google Meet', description: '' });
+    const [selectedMeeting, setSelectedMeeting] = useState<Partial<Meeting> | undefined>(undefined);
 
-    const handleSave = async () => {
-        if (!newMeeting.title || !newMeeting.date || !newMeeting.time) return;
+    const handleOpenAdd = () => {
+        setSelectedMeeting({ clientId: client.id });
+        setIsModalOpen(true);
+    };
 
-        const [year, month, day] = newMeeting.date.split('-').map(Number);
-        const [hours, minutes] = newMeeting.time.split(':').map(Number);
-        const start = new Date(year, month - 1, day, hours, minutes);
+    const handleOpenEdit = (m: Meeting) => {
+        setSelectedMeeting(m);
+        setIsModalOpen(true);
+    };
 
-        await onAddMeeting({
-            title: newMeeting.title,
-            start_time: start.toISOString(),
-            type: newMeeting.type as any,
-            clientId: client.id,
-            status: 'scheduled',
-            description: newMeeting.description
-        });
+    const handleSave = async (meetingData: any) => {
+        if (meetingData.id) {
+            await onUpdateMeeting(meetingData);
+        } else {
+            await onAddMeeting(meetingData);
+        }
         setIsModalOpen(false);
-        setNewMeeting({ title: '', date: '', time: '', type: 'Google Meet', description: '' });
+    };
+
+    const handleDelete = async (id: string) => {
+        if (window.confirm("Deseja realmente excluir esta reunião?")) {
+            await onDeleteMeeting(id);
+            setIsModalOpen(false);
+        }
     };
 
     return (
@@ -736,28 +779,20 @@ const MeetingsTab: React.FC<{ client: Client, meetings: Meeting[], onAddMeeting:
                     <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Agenda & Reuniões</h3>
                     <p className="text-sm text-gray-500 mt-1">Histórico de encontros e próximos agendamentos.</p>
                 </div>
-                <button onClick={() => setIsModalOpen(true)} className="bg-vblack text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-800 shadow-lg transition-colors">
+                <button onClick={handleOpenAdd} className="bg-vblack text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-800 shadow-lg transition-colors">
                     <Plus weight="bold" size={18} /> Agendar Reunião
                 </button>
             </div>
 
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Agendar Reunião" size="sm">
-                <div className="p-6 space-y-4">
-                    <input className="w-full border p-3 rounded-lg text-sm" placeholder="Título da Reunião" value={newMeeting.title} onChange={e => setNewMeeting({ ...newMeeting, title: e.target.value })} />
-                    <div className="flex gap-4">
-                        <input type="date" className="w-full border p-3 rounded-lg text-sm" value={newMeeting.date} onChange={e => setNewMeeting({ ...newMeeting, date: e.target.value })} />
-                        <input type="time" className="w-full border p-3 rounded-lg text-sm" value={newMeeting.time} onChange={e => setNewMeeting({ ...newMeeting, time: e.target.value })} />
-                    </div>
-                    <select className="w-full border p-3 rounded-lg text-sm bg-white" value={newMeeting.type} onChange={e => setNewMeeting({ ...newMeeting, type: e.target.value })}>
-                        <option value="Google Meet">Google Meet</option>
-                        <option value="Zoom">Zoom</option>
-                        <option value="Presencial">Presencial</option>
-                        <option value="Interno">Interno</option>
-                    </select>
-                    <textarea className="w-full border p-3 rounded-lg text-sm h-24 resize-none" placeholder="Pauta / Descrição (Opcional)" value={newMeeting.description} onChange={e => setNewMeeting({ ...newMeeting, description: e.target.value })} />
-                    <button onClick={handleSave} className="w-full bg-vblack text-white py-3 rounded-lg font-bold hover:bg-gray-800">Confirmar Agendamento</button>
-                </div>
-            </Modal>
+            <MeetingFormModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSave={handleSave}
+                onDelete={handleDelete}
+                meeting={selectedMeeting}
+                clients={[client]}
+                leads={leads}
+            />
 
             <div className="space-y-4">
                 {meetings.length > 0 ? meetings.map(m => (
@@ -778,7 +813,7 @@ const MeetingsTab: React.FC<{ client: Client, meetings: Meeting[], onAddMeeting:
                                 </div>
                             </div>
                         </div>
-                        <button className="text-sm font-bold text-blue-600 hover:underline">Detalhes</button>
+                        <button onClick={() => handleOpenEdit(m)} className="text-sm font-bold text-blue-600 hover:underline">Detalhes</button>
                     </div>
                 )) : (
                     <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">

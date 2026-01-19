@@ -75,12 +75,14 @@ export const HomeModule = () => {
         return {
           id: m.id,
           time: new Date(m.start_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          rawTime: new Date(m.start_time).getTime(),
           title: m.title,
           sub: clientName || leadName,
           type: m.type,
           isMeeting: true
         };
-      });
+      })
+      .sort((a, b) => a.rawTime - b.rawTime);
   }, [meetings, clients, leads]);
 
   const [showAllAgenda, setShowAllAgenda] = useState(false);

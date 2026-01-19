@@ -25,6 +25,8 @@ interface VanguardContextType {
     // Actions
     addClient: (client: Omit<Client, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
     updateClient: (client: Client) => Promise<void>;
+    deleteClient: (id: string) => Promise<void>;
+    archiveClient: (id: string) => Promise<void>;
 
     addTask: (task: Omit<Task, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
     updateTask: (task: Task) => Promise<void>;
@@ -160,7 +162,8 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
                 ...m,
                 clientId: m.client_id,
                 leadId: m.lead_id,
-                status: m.status || 'scheduled'
+                status: m.status || 'scheduled',
+                updated_at: m.updated_at
             })) as Meeting[]);
 
             if (perfData) {
@@ -243,6 +246,16 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         };
         const { error } = await supabase.from('clients').update(payload).eq('id', c.id);
         if (!error) setClients(prev => prev.map(item => item.id === c.id ? c : item));
+    };
+
+    const deleteClient = async (id: string) => {
+        const { error } = await supabase.from('clients').delete().eq('id', id);
+        if (!error) setClients(prev => prev.filter(item => item.id !== id));
+    };
+
+    const archiveClient = async (id: string) => {
+        const { error } = await supabase.from('clients').update({ status: 'arquivado' }).eq('id', id);
+        if (!error) setClients(prev => prev.map(item => item.id === id ? { ...item, status: 'arquivado' } : item));
     };
 
     const addTask = async (t: Omit<Task, 'id' | 'user_id' | 'created_at'>) => {
@@ -572,7 +585,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         <VanguardContext.Provider value={{
             clients, tasks, leads, campaigns, sops, content, performance,
             loading, projectFilter, setProjectFilter,
-            addClient, updateClient,
+            addClient, updateClient, deleteClient, archiveClient,
             addTask, updateTask, deleteTask,
             addLead, updateLead, deleteLead,
             addContent, updateContent, deleteContent,

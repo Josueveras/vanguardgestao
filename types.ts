@@ -36,7 +36,7 @@ export interface Client {
   name: string;
   logo: string;
   mrr: number;
-  status: 'ativo' | 'cancelado' | 'onboarding' | 'em_risco';
+  status: 'ativo' | 'cancelado' | 'onboarding' | 'em_risco' | 'arquivado';
   plan: string;
   healthScore: number;
   lastInteraction: string;
@@ -236,4 +236,5 @@ export interface Meeting {
   description?: string;
   user_id?: string;
   created_at?: string;
+  updated_at?: string;
 }
