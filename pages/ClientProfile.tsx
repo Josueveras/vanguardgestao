@@ -267,8 +267,15 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
 
     const handleDelete = async () => {
         if (window.confirm("EXCLUSÃO DEFINITIVA: Deseja apagar todos os dados deste cliente? Esta ação não pode ser desfeita.")) {
-            await deleteClient(client.id);
-            onBack();
+            try {
+                await deleteClient(client.id);
+                setToast({ msg: 'Cliente excluído permanentemente!', type: 'success' });
+                // Return to list after a short delay
+                setTimeout(() => onBack(), 1000);
+            } catch (err) {
+                console.error('Failed to delete client:', err);
+                setToast({ msg: 'Erro ao excluir cliente. Tente novamente.', type: 'error' });
+            }
         }
     };
 

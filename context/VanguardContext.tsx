@@ -249,8 +249,28 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const deleteClient = async (id: string) => {
-        const { error } = await supabase.from('clients').delete().eq('id', id);
-        if (!error) setClients(prev => prev.filter(item => item.id !== id));
+        const clientToDelete = clients.find(c => c.id === id);
+        if (!clientToDelete) return;
+
+        try {
+            // Delete tasks and content posts linked by name (logical relationship)
+            await Promise.all([
+                supabase.from('tasks').delete().eq('project', clientToDelete.name),
+                supabase.from('content_posts').delete().eq('client', clientToDelete.name)
+            ]);
+
+            const { error } = await supabase.from('clients').delete().eq('id', id);
+
+            if (error) throw error;
+
+            // Update local state
+            setClients(prev => prev.filter(item => item.id !== id));
+            setTasks(prev => prev.filter(t => t.project !== clientToDelete.name));
+            setContent(prev => prev.filter(c => c.client !== clientToDelete.name));
+        } catch (error) {
+            console.error('[VANGUARD ERROR] deleteClient:', error);
+            throw error;
+        }
     };
 
     const archiveClient = async (id: string) => {
