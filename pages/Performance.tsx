@@ -35,21 +35,24 @@ const MetricCard = ({ title, value, subtext, trend, prefix = '' }: any) => (
 const generateClientData = (client: Client): PerformanceReport => {
   // Return zeroed data structure - no mock/fake data
   return {
-    client: client.name,
-    revenue: 0,
+    clientId: client.id,
+    month: 'Current',
     investment: 0,
+    leads: 0,
+    sales: 0,
+    revenue: 0,
     roi: 0,
     roas: 0,
+    cpl: 0,
     cac: 0,
-    ltv: 0,
-    conversionRate: 0,
-    history: [],
     insights: {
       bestCampaign: '',
       worstCampaign: '',
       bottleneck: '',
-      recommendation: 'Integre dados reais de campanhas para visualizar métricas.'
-    }
+      opportunity: '',
+      recommendations: ['Integre dados reais de campanhas para visualizar métricas.']
+    },
+    history: []
   };
 };
 
