@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { SOPItem } from '../types';
-import { BookOpen, FloppyDisk, Trash } from '@phosphor-icons/react';
+import { BookOpen, FloppyDisk, Trash, Clock, Archive } from '@phosphor-icons/react';
 import { Button, Card, Modal, Toast } from '../components/ui';
 import { useVanguard } from '../context/VanguardContext';
 import {
@@ -23,10 +23,11 @@ import {
 import { SortableSOPCard } from '../components/SOP/SortableSOPCard';
 
 export const SOPModule = () => {
-    const { sops, addSOP, updateSOP, deleteSOP, loading } = useVanguard();
+    const { sops, addSOP, updateSOP, deleteSOP, archiveSOP, restoreSOP, reorderSOP, loading } = useVanguard();
     const [selectedDoc, setSelectedDoc] = useState<Partial<SOPItem> | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+    const [showArchived, setShowArchived] = useState(false);
     const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -42,7 +43,11 @@ export const SOPModule = () => {
 
     // Ensure we are sorting by position if available
     const filteredSops = sops
-        .filter(doc => selectedCategory === 'Todos' || doc.category === selectedCategory)
+        .filter(doc => {
+            const matchesCategory = selectedCategory === 'Todos' || doc.category === selectedCategory;
+            const matchesArchived = showArchived ? true : !doc.archived;
+            return matchesCategory && matchesArchived;
+        })
         .sort((a, b) => (a.position || 0) - (b.position || 0));
 
     const handleEdit = (doc: SOPItem) => {
@@ -98,6 +103,27 @@ export const SOPModule = () => {
         }
     };
 
+    const handleArchive = async () => {
+        if (selectedDoc?.id) {
+            setIsSaving(true);
+            try {
+                if (selectedDoc.archived) {
+                    await restoreSOP(selectedDoc.id);
+                    setToast({ msg: 'Documento restaurado!', type: 'success' });
+                } else {
+                    await archiveSOP(selectedDoc.id);
+                    setToast({ msg: 'Documento arquivado!', type: 'success' });
+                }
+                setIsModalOpen(false);
+            } catch (err) {
+                console.error('[SOP] Archive/Restore failed:', err);
+                setToast({ msg: 'Erro ao arquivar/restaurar', type: 'error' });
+            } finally {
+                setIsSaving(false);
+            }
+        }
+    };
+
     // DnD Handlers
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
@@ -109,29 +135,16 @@ export const SOPModule = () => {
 
         if (!over || active.id === over.id) return;
 
-        // Note: Full reordering logic would require 'arrayMove' equivalent for persistence.
-        // For now, we will just swap positions or similar logic, but since we rely on 'updateSOP',
-        // we might need to update indices of A vs B.
-        // Or simpler: Just update local state order if we want optimistic, then save ALL changes?
-        // Saving all changes is expensive.
-        // Let's implement simple swap for now or 'insert before'.
+        const activeSop = filteredSops.find(s => s.id === active.id);
+        const overSop = filteredSops.find(s => s.id === over.id);
 
-        // Actually, let's just log it or do a simple position swap between the two dragged items for simplicity, 
-        // as full list reordering requires batch updates which we might not have exposed efficiently yet (though context has reorderTask, maybe we need reorderSOP).
-        // For MVP, we'll try to swap positions of active and over.
-
-        const activeSop = sops.find(s => s.id === active.id);
-        const overSop = sops.find(s => s.id === over.id);
-
-        if (activeSop && overSop) {
-            // Swap positions
-            const activePos = activeSop.position || 0;
-            const overPos = overSop.position || 0;
-
-            // We should really shift everything in between, but that's complex without a batch update.
-            // Let's just swap them to demonstrate capability.
-            await updateSOP({ ...activeSop, position: overPos });
-            await updateSOP({ ...overSop, position: activePos });
+        if (activeSop && overSop && activeSop.category === overSop.category) {
+            // BUG #5 FIX: Use reorderSOP instead of dual updates
+            try {
+                await reorderSOP(activeSop.id, overSop.position || 0);
+            } catch (err) {
+                console.error('[SOP] Reorder failed:', err);
+            }
         }
     };
 
@@ -174,11 +187,18 @@ export const SOPModule = () => {
                     </div>
 
                     <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
-                        {selectedDoc?.id ? (
-                            <button onClick={handleDelete} disabled={isSaving} className="text-red-500 hover:bg-red-50 px-3 py-2 rounded flex items-center gap-2 text-sm font-bold transition-colors">
-                                <Trash size={16} /> Excluir
-                            </button>
-                        ) : <div></div>}
+                        <div className="flex gap-2">
+                            {selectedDoc?.id && (
+                                <>
+                                    <button onClick={handleArchive} disabled={isSaving} className="p-2.5 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors border border-gray-200" title={selectedDoc.archived ? "Restaurar Documento" : "Arquivar Documento"}>
+                                        <Clock size={20} weight="bold" />
+                                    </button>
+                                    <button onClick={handleDelete} disabled={isSaving} className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-gray-200" title="Excluir Documento">
+                                        <Trash size={20} weight="bold" />
+                                    </button>
+                                </>
+                            )}
+                        </div>
 
                         <button onClick={handleSave} disabled={isSaving} className="bg-vblack text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-gray-800 transition-all shadow-lg">
                             {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FloppyDisk size={18} />}
@@ -193,7 +213,16 @@ export const SOPModule = () => {
                     <h2 className="text-2xl font-bold text-vblack">Processos & SOP</h2>
                     <p className="text-sm text-gray-500">Base de conhecimento interna da Vanguarda.</p>
                 </div>
-                <Button onClick={handleCreate}>+ Novo Documento</Button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setShowArchived(!showArchived)}
+                        className={`p-2.5 rounded-lg border border-gray-200 transition-all ${showArchived ? 'bg-gray-100 text-vblack shadow-sm' : 'text-gray-400 hover:text-vblack bg-white'}`}
+                        title="Ver Arquivados"
+                    >
+                        <Archive size={20} weight={showArchived ? 'fill' : 'regular'} />
+                    </button>
+                    <Button onClick={handleCreate}>+ Novo Documento</Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

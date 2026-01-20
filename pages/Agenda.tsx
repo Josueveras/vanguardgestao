@@ -16,14 +16,14 @@ import {
 } from '@phosphor-icons/react';
 import { useVanguard } from '../context/VanguardContext';
 import { Card, Button, Modal, Toast } from '../components/ui';
-import { LeadFormModal } from '../components/CRM/LeadFormModal';
-import { Lead, Meeting } from '../types';
+import { MeetingFormModal } from '../components/MeetingFormModal';
+import { Meeting } from '../types';
 
 export const AgendaModule: React.FC = () => {
-    const { leads, meetings, addLead, addMeeting, updateLead, deleteLead, clients } = useVanguard();
+    const { leads, meetings, addLead, addMeeting, updateLead, updateMeeting, deleteLead, deleteMeeting, clients } = useVanguard();
     const [selectedDate, setSelectedDate] = useState(new Date());
-    const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
-    const [selectedLead, setSelectedLead] = useState<Partial<Lead>>({});
+    const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
+    const [selectedMeeting, setSelectedMeeting] = useState<Partial<Meeting>>({});
     const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
 
     // Helpers for date manipulation
@@ -86,53 +86,63 @@ export const AgendaModule: React.FC = () => {
     }, [leads, meetings, selectedDate]);
 
     const handleItemClick = (item: any) => {
-        if (item.leadId) {
-            const lead = leads.find(l => l.id === item.leadId);
-            if (lead) {
-                setSelectedLead(lead);
-                setIsLeadModalOpen(true);
-            }
+        if (item.type === 'meeting') {
+            handleMeetingClick(item);
         }
     };
 
     const handleEmptySlotClick = (hour: number) => {
         const date = new Date(selectedDate);
         date.setHours(hour, 0, 0, 0);
-        setSelectedLead({
-            nextActionDate: date.toISOString(),
-            nextActionType: 'reuniao',
-            stage: 'prospect'
+        setSelectedMeeting({
+            start_time: date.toISOString(),
+            type: 'Google Meet',
+            status: 'scheduled'
         });
-        setIsLeadModalOpen(true);
+        setIsMeetingModalOpen(true);
     };
 
-    const handleSaveLead = async (lead: Lead) => {
+    const handleSaveMeeting = async (meeting: any) => {
         try {
-            if (lead.id) {
-                await updateLead(lead);
-                setToast({ msg: 'Lead atualizado!', type: 'success' });
+            if (meeting.id) {
+                await updateMeeting(meeting as Meeting);
+                setToast({ msg: 'Reunião atualizada!', type: 'success' });
             } else {
-                await addLead(lead as any);
-                setToast({ msg: 'Novo lead e agendamento criados!', type: 'success' });
+                await addMeeting(meeting);
+                setToast({ msg: 'Reunião agendada!', type: 'success' });
             }
-            setIsLeadModalOpen(false);
+            setIsMeetingModalOpen(false);
+            setSelectedMeeting({});
         } catch (e) {
-            setToast({ msg: 'Erro ao salvar', type: 'error' });
+            setToast({ msg: 'Erro ao salvar reunião', type: 'error' });
         }
     };
 
-    const hours = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 to 21:00
+    const handleMeetingClick = (meeting: any) => {
+        const fullMeeting = meetings.find(m => m.id === meeting.id);
+        if (fullMeeting) {
+            setSelectedMeeting(fullMeeting);
+            setIsMeetingModalOpen(true);
+        }
+    };
+
+    // Dynamic hours: 6 AM to 11 PM (configurable)
+    const startHour = 6;
+    const endHour = 23;
+    const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => i + startHour);
 
     return (
         <div className="h-[calc(100vh-140px)] flex flex-col space-y-6">
             {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
-            <LeadFormModal
-                isOpen={isLeadModalOpen}
-                onClose={() => setIsLeadModalOpen(false)}
-                lead={selectedLead}
-                onSave={handleSaveLead}
-                onDelete={deleteLead}
+            <MeetingFormModal
+                isOpen={isMeetingModalOpen}
+                onClose={() => { setIsMeetingModalOpen(false); setSelectedMeeting({}); }}
+                meeting={selectedMeeting}
+                onSave={handleSaveMeeting}
+                onDelete={deleteMeeting}
+                clients={clients}
+                leads={leads}
             />
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -152,7 +162,7 @@ export const AgendaModule: React.FC = () => {
                         <button onClick={() => changeDate(-1)} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-gray-600"><CaretLeft size={20} weight="bold" /></button>
                         <button onClick={() => changeDate(1)} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-gray-600"><CaretRight size={20} weight="bold" /></button>
                     </div>
-                    <Button onClick={() => handleEmptySlotClick(new Date().getHours())} className="gap-2 px-5">
+                    <Button onClick={() => { setSelectedMeeting({ start_time: new Date().toISOString(), type: 'Google Meet', status: 'scheduled' }); setIsMeetingModalOpen(true); }} className="gap-2 px-5">
                         <Plus size={18} weight="bold" /> Agendar
                     </Button>
                 </div>

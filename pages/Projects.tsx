@@ -100,7 +100,7 @@ const ProjectTaskCard: React.FC<{ task: Task; onClick: (t: Task) => void }> = Re
 // But we can keep the header rendering part generic or inline it.
 
 export const ProjectsModule = () => {
-    const { tasks, clients, addTask, updateTask, deleteTask, projectFilter, setProjectFilter, loading } = useVanguard();
+    const { tasks, clients, addTask, updateTask, deleteTask, archiveTask, restoreTask, projectFilter, setProjectFilter, loading } = useVanguard();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Partial<Task>>({});
     const [viewMode, setViewMode] = useState<'board' | 'gantt' | 'calendar'>('board');
@@ -195,11 +195,31 @@ export const ProjectsModule = () => {
             try {
                 await deleteTask(editingTask.id);
                 setIsModalOpen(false);
+            } catch (err) {
+                console.error('[Projects] Delete failed:', err);
             } finally {
                 setIsSaving(false);
             }
         }
     }, [editingTask.id, deleteTask]);
+
+    const handleArchive = useCallback(async () => {
+        if (editingTask.id) {
+            setIsSaving(true);
+            try {
+                if (editingTask.archived) {
+                    await restoreTask(editingTask.id);
+                } else {
+                    await archiveTask(editingTask.id);
+                }
+                setIsModalOpen(false);
+            } catch (err) {
+                console.error('[Projects] Archive/Restore failed:', err);
+            } finally {
+                setIsSaving(false);
+            }
+        }
+    }, [editingTask.id, editingTask.archived, archiveTask, restoreTask]);
 
     // DnD Handlers
     const handleDragStart = (event: DragStartEvent) => {
@@ -254,6 +274,7 @@ export const ProjectsModule = () => {
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSaveDirect}
                 onDelete={handleDelete}
+                onArchive={handleArchive}
                 initialData={editingTask.id ? editingTask as Task : undefined}
                 availableProjects={clients.map(c => c.name)}
                 availableAssignees={uniqueAssignees}

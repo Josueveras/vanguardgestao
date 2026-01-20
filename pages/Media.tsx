@@ -26,7 +26,9 @@ import {
     ThumbsUp,
     PencilSimple,
     CheckCircle,
-    X
+    X,
+    Clock,
+    Archive
 } from '@phosphor-icons/react';
 import { useVanguard } from '../context/VanguardContext';
 
@@ -199,9 +201,10 @@ const MobilePreview = React.memo(({ item }: { item: Partial<ContentItem> }) => {
 });
 
 export const MediaModule: React.FC = () => {
-    const { content, clients, addContent, updateContent, deleteContent, loading } = useVanguard();
+    const { content, clients, addContent, updateContent, deleteContent, archiveContent, restoreContent, loading } = useVanguard();
     const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
     const [selectedClient, setSelectedClient] = useState<string>('all');
+    const [showArchived, setShowArchived] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<Partial<ContentItem>>({});
     const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
@@ -218,9 +221,11 @@ export const MediaModule: React.FC = () => {
         { id: 'publicado', label: 'Postado', icon: PaperPlaneRight },
     ];
 
-    const filteredContent = content.filter(c =>
-        selectedClient === 'all' || c.client === selectedClient
-    );
+    const filteredContent = content.filter(c => {
+        const matchesClient = selectedClient === 'all' || c.client === selectedClient;
+        const matchesArchived = showArchived ? true : !c.archived;
+        return matchesClient && matchesArchived;
+    });
 
     const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
         setDraggedItem(id);
@@ -271,11 +276,33 @@ export const MediaModule: React.FC = () => {
             setToast({ msg: 'Post excluído.', type: 'success' });
             setIsModalOpen(false);
         } catch (err) {
+            console.error('[Media] Delete failed:', err);
             setToast({ msg: 'Erro ao excluir post', type: 'error' });
         } finally {
             setIsSaving(false);
         }
     }, [deleteContent]);
+
+    const handleArchive = useCallback(async () => {
+        if (editingItem.id) {
+            setIsSaving(true);
+            try {
+                if (editingItem.archived) {
+                    await restoreContent(editingItem.id);
+                    setToast({ msg: 'Post restaurado.', type: 'success' });
+                } else {
+                    await archiveContent(editingItem.id);
+                    setToast({ msg: 'Post arquivado.', type: 'success' });
+                }
+                setIsModalOpen(false);
+            } catch (err) {
+                console.error('[Media] Archive/Restore failed:', err);
+                setToast({ msg: 'Erro ao arquivar/restaurar', type: 'error' });
+            } finally {
+                setIsSaving(false);
+            }
+        }
+    }, [editingItem.id, editingItem.archived, archiveContent, restoreContent]);
 
     const handleSave = async () => {
         if (!editingItem.title || !editingItem.client) return;
@@ -449,11 +476,18 @@ export const MediaModule: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="p-6 border-t border-gray-200 bg-gray-50 flex gap-3">
+                            <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-between gap-3">
                                 {editingItem.id && (
-                                    <button onClick={() => handleDelete(editingItem.id!)} disabled={isSaving} className="px-5 py-3 border border-red-200 text-red-600 font-bold rounded-lg hover:bg-red-50">Excluir</button>
+                                    <div className="flex gap-2">
+                                        <button onClick={handleArchive} disabled={isSaving} className="p-2.5 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors border border-gray-200" title={editingItem.archived ? "Restaurar Post" : "Arquivar Post"}>
+                                            <Clock size={20} weight="bold" />
+                                        </button>
+                                        <button onClick={() => handleDelete(editingItem.id!)} disabled={isSaving} className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-gray-200" title="Excluir Post">
+                                            <Trash size={20} weight="bold" />
+                                        </button>
+                                    </div>
                                 )}
-                                <button onClick={handleSave} disabled={isSaving} className="flex-1 bg-vblack text-white font-bold rounded-lg hover:bg-gray-800 transition-colors shadow-lg flex items-center justify-center gap-2">
+                                <button onClick={handleSave} disabled={isSaving} className="flex-1 bg-vblack text-white font-bold rounded-lg hover:bg-gray-800 transition-colors shadow-lg flex items-center justify-center gap-2 ml-auto max-w-xs">
                                     {isSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
                                     {isSaving ? 'Salvando...' : 'Salvar Post'}
                                 </button>
@@ -504,6 +538,13 @@ export const MediaModule: React.FC = () => {
                             className={`px-3 rounded text-xs font-medium flex items-center gap-1 transition-all ${viewMode === 'list' ? 'bg-gray-100 text-vblack shadow-sm' : 'text-gray-400 hover:text-vblack'}`}
                         >
                             <ListDashes size={18} weight={viewMode === 'list' ? 'fill' : 'regular'} />
+                        </button>
+                        <button
+                            onClick={() => setShowArchived(!showArchived)}
+                            className={`px-3 rounded text-xs font-medium flex items-center gap-1 transition-all ${showArchived ? 'bg-gray-100 text-vblack shadow-sm' : 'text-gray-400 hover:text-vblack'}`}
+                            title="Ver Arquivados"
+                        >
+                            <Archive size={18} weight={showArchived ? 'fill' : 'regular'} />
                         </button>
                     </div>
 

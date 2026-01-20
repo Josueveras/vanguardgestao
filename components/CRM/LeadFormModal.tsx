@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Buildings, Clock, Notepad, PaperPlaneRight } from '@phosphor-icons/react';
+import { X, Check, Buildings, Clock, Notepad, PaperPlaneRight, Trash } from '@phosphor-icons/react';
 import { Lead, LeadHistoryItem } from '../../types';
 
 interface LeadFormModalProps {
@@ -7,10 +7,11 @@ interface LeadFormModalProps {
     onClose: () => void;
     lead: Partial<Lead>;
     onSave: (lead: Lead) => Promise<void>;
-    onDelete?: (id: string) => Promise<void>;
+    onDelete?: () => void;
+    onArchive?: () => void;
 }
 
-export const LeadFormModal: React.FC<LeadFormModalProps> = ({ isOpen, onClose, lead, onSave, onDelete }) => {
+export const LeadFormModal: React.FC<LeadFormModalProps> = ({ isOpen, onClose, lead, onSave, onDelete, onArchive }) => {
     if (!isOpen) return null;
 
     const [activeTab, setActiveTab] = useState<'data' | 'timeline' | 'notes'>('data');
@@ -85,7 +86,7 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({ isOpen, onClose, l
     const handleDelete = async () => {
         if (!lead.id || !onDelete) return;
         if (window.confirm('Tem certeza que deseja excluir este lead?')) {
-            await onDelete(lead.id);
+            onDelete();
             onClose();
         }
     };
@@ -203,12 +204,21 @@ export const LeadFormModal: React.FC<LeadFormModalProps> = ({ isOpen, onClose, l
                     )}
                 </div>
                 <div className="p-5 border-t border-gray-200 bg-gray-50 flex justify-between gap-3">
-                    {formData.id && onDelete ? (
-                        <button onClick={handleDelete} className="text-red-500 hover:text-red-700 text-sm font-bold flex items-center gap-1">
-                            <X size={16} weight="bold" /> Excluir Lead
-                        </button>
-                    ) : <div></div>}
-                    <div className="flex gap-3">
+                    {formData.id && (
+                        <div className="flex gap-2">
+                            {onArchive && (
+                                <button onClick={onArchive} className="p-2.5 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors border border-gray-200" title={lead.archived ? "Restaurar Lead" : "Arquivar Lead"}>
+                                    <Clock size={20} weight="bold" />
+                                </button>
+                            )}
+                            {onDelete && (
+                                <button onClick={handleDelete} className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-gray-200" title="Excluir Lead">
+                                    <Trash size={20} weight="bold" />
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    <div className="flex gap-3 ml-auto">
                         <button onClick={onClose} className="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:bg-white border border-transparent hover:border-gray-200 transition-all">Cancelar</button>
                         <button onClick={handleSave} disabled={isSaving} className="px-6 py-2.5 rounded-lg text-sm font-bold text-white bg-vblack hover:bg-gray-800 transition-all flex items-center gap-2 shadow-lg">
                             {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Check size={18} weight="bold" />}

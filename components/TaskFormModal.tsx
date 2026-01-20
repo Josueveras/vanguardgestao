@@ -6,7 +6,8 @@ import {
     PaperPlaneRight,
     PencilSimple,
     Plus,
-    Trash
+    Trash,
+    Clock
 } from '@phosphor-icons/react';
 import { Task, Subtask, TaskComment, ChecklistItem } from '../types';
 
@@ -14,6 +15,8 @@ interface TaskFormModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (task: Partial<Task>) => void;
+    onDelete?: () => void;
+    onArchive?: () => void;
     initialData?: Task;
     availableProjects: string[];
     availableAssignees: string[];
@@ -23,6 +26,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
     isOpen,
     onClose,
     onSave,
+    onDelete,
+    onArchive,
     initialData,
     availableProjects,
     availableAssignees
@@ -464,19 +469,43 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 {/* Footer */}
                 <div className="p-6 border-t border-gray-100 flex-shrink-0 bg-gray-50/50">
                     {activeTab === 'details' ? (
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={onClose}
-                                className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:text-vblack transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleSave}
-                                className="px-8 py-2.5 bg-vblack text-white text-sm font-bold rounded-lg shadow-lg hover:shadow-vblack/20 hover:-translate-y-0.5 transition-all"
-                            >
-                                Salvar Tarefa
-                            </button>
+                        <div className="flex justify-between gap-3">
+                            {initialData?.id && (
+                                <div className="flex gap-2">
+                                    {onArchive && (
+                                        <button
+                                            onClick={onArchive}
+                                            className="p-2.5 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors border border-gray-200"
+                                            title={initialData.archived ? "Restaurar Tarefa" : "Arquivar Tarefa"}
+                                        >
+                                            <Clock size={20} weight="bold" />
+                                        </button>
+                                    )}
+                                    {onDelete && (
+                                        <button
+                                            onClick={onDelete}
+                                            className="p-2.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-gray-200"
+                                            title="Excluir Tarefa"
+                                        >
+                                            <Trash size={20} weight="bold" />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            <div className="flex gap-3 ml-auto">
+                                <button
+                                    onClick={onClose}
+                                    className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:text-vblack transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    className="px-8 py-2.5 bg-vblack text-white text-sm font-bold rounded-lg shadow-lg hover:shadow-vblack/20 hover:-translate-y-0.5 transition-all"
+                                >
+                                    Salvar Tarefa
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <div className="flex gap-3">

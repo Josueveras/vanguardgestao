@@ -62,6 +62,8 @@ export interface Campaign {
   roas: number;
   ctr: number;
   cpa: number;
+  archived?: boolean;
+  archived_at?: string;
 }
 
 export interface LeadHistoryItem {
@@ -111,6 +113,8 @@ export interface Lead {
   // Operational
   responsibleName?: string;
   probability?: number; // 0-100
+  archived?: boolean;
+  archived_at?: string;
 
   // Extras
   timeline?: LeadHistoryItem[];
@@ -196,6 +200,8 @@ export interface SOPItem {
   lastUpdated: string;
   content?: string; // Content of the SOP
   position?: number; // Reorder
+  archived?: boolean;
+  archived_at?: string;
 }
 
 export interface ContentItem {
@@ -210,6 +216,8 @@ export interface ContentItem {
   creativeUrl?: string; // Added for visual preview
   caption?: string; // New Field for Post Caption
   position?: number; // Kanban sort
+  archived?: boolean;
+  archived_at?: string;
 }
 
 export interface Moonshot {

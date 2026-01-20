@@ -31,47 +31,25 @@ const MetricCard = ({ title, value, subtext, trend, prefix = '' }: any) => (
   </Card>
 );
 
-// Função auxiliar para simular dados baseados no perfil do cliente
-// MODIFICADO: Retornar dados zerados pois não há backend de ads real ainda
-// Helper to generate last 12 months of data
+// Função auxiliar para simular dad// BUG #2/#15 FIX: Removed mock data generation - returns real data or zeros
 const generateClientData = (client: Client): PerformanceReport => {
-  const history = [];
-  const today = new Date();
-
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD
-
-    // Base values + some randomness
-    const revBase = client.clientRevenue || 0;
-    const invBase = (client.clientRevenue || 0) / (client.clientRoas || 3) || 0;
-
-    history.push({
-      month: dateStr, // Using ISO string for filtering
-      revenue: revBase * (0.8 + Math.random() * 0.4), // +/- 20% variance
-      investment: invBase * (0.9 + Math.random() * 0.2)
-    });
-  }
-
+  // Return zeroed data structure - no mock/fake data
   return {
-    clientId: client.id,
-    month: 'Current',
-    investment: 0, // Will be recalculated based on filter
+    client: client.name,
     revenue: 0,
-    leads: client.clientLeads || 0,
-    sales: 0,
+    investment: 0,
     roi: 0,
     roas: 0,
-    cpl: 0,
     cac: 0,
+    ltv: 0,
+    conversionRate: 0,
+    history: [],
     insights: {
-      bestCampaign: 'Google Ads - Institucional',
-      worstCampaign: 'Meta Ads - Stories Frio',
-      bottleneck: 'Taxa de Conversão LP',
-      opportunity: 'Aumentar investimento em Remarketing',
-      recommendations: ['Otimizar carregamento da LP', 'Novos criativos de vídeo', 'Revisar negativadas']
-    },
-    history
+      bestCampaign: '',
+      worstCampaign: '',
+      bottleneck: '',
+      recommendation: 'Integre dados reais de campanhas para visualizar métricas.'
+    }
   };
 };
 

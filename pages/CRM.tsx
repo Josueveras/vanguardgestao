@@ -9,6 +9,7 @@ import {
   ChartBar,
   CurrencyDollar,
   Target,
+  Archive
 } from '@phosphor-icons/react';
 import { useVanguard } from '../context/VanguardContext';
 import { calculateStockMetrics, calculateFlowMetrics } from '../utils/metrics';
@@ -36,10 +37,11 @@ import {
 } from '@dnd-kit/sortable';
 
 export const CRMModule: React.FC = () => {
-  const { leads, addLead, updateLead, deleteLead, loading } = useVanguard();
+  const { leads, addLead, updateLead, deleteLead, archiveLead, restoreLead, loading } = useVanguard();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Partial<Lead>>({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
 
   // DnD State
@@ -58,10 +60,12 @@ export const CRMModule: React.FC = () => {
     { key: 'fechado', label: 'Fechado', color: 'bg-green-500' },
   ], []);
 
-  const filteredLeads = useMemo(() => leads.filter(l =>
-    l.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    l.name.toLowerCase().includes(searchTerm.toLowerCase())
-  ), [leads, searchTerm]);
+  const filteredLeads = useMemo(() => leads.filter(l => {
+    const matchesSearch = l.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      l.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesArchived = showArchived ? true : !l.archived;
+    return matchesSearch && matchesArchived;
+  }), [leads, searchTerm, showArchived]);
 
   const handleLeadClick = useCallback((lead: Lead) => {
     setEditingLead(lead);
@@ -87,6 +91,37 @@ export const CRMModule: React.FC = () => {
       setToast({ msg: 'Erro ao salvar lead', type: 'error' });
     }
   }, [editingLead.id, updateLead, addLead]);
+
+  const handleArchive = useCallback(async () => {
+    if (editingLead.id) {
+      try {
+        if (editingLead.archived) {
+          await restoreLead(editingLead.id);
+          setToast({ msg: 'Lead restaurado!', type: 'success' });
+        } else {
+          await archiveLead(editingLead.id);
+          setToast({ msg: 'Lead arquivado!', type: 'success' });
+        }
+        setIsModalOpen(false);
+      } catch (err) {
+        console.error('[CRM] Archive/Restore failed:', err);
+        setToast({ msg: 'Erro ao arquivar/restaurar', type: 'error' });
+      }
+    }
+  }, [editingLead.id, editingLead.archived, archiveLead, restoreLead]);
+
+  const handleDelete = useCallback(async () => {
+    if (editingLead.id) {
+      try {
+        await deleteLead(editingLead.id);
+        setToast({ msg: 'Lead excluído!', type: 'success' });
+        setIsModalOpen(false);
+      } catch (err) {
+        console.error('[CRM] Delete failed:', err);
+        setToast({ msg: 'Erro ao excluir', type: 'error' });
+      }
+    }
+  }, [editingLead.id, deleteLead]);
 
   // DnD Handlers
   const handleDragStart = (event: DragStartEvent) => {
@@ -164,7 +199,8 @@ export const CRMModule: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         lead={editingLead}
         onSave={handleSaveLead}
-        onDelete={deleteLead}
+        onDelete={handleDelete}
+        onArchive={handleArchive}
       />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -178,6 +214,13 @@ export const CRMModule: React.FC = () => {
             <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-vblack" size={16} />
             <input type="text" placeholder="Buscar por empresa..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-gray-100 outline-none transition-all shadow-sm" />
           </div>
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className={`p-2.5 rounded-lg border border-gray-200 transition-all ${showArchived ? 'bg-gray-100 text-vblack shadow-sm' : 'text-gray-400 hover:text-vblack bg-white'}`}
+            title="Ver Arquivados"
+          >
+            <Archive size={20} weight={showArchived ? 'fill' : 'regular'} />
+          </button>
           <button onClick={handleCreate} className="flex items-center gap-2 px-4 py-2 bg-vblack text-white rounded-lg text-sm font-bold hover:bg-gray-800 shadow-lg whitespace-nowrap transition-all"><Plus size={16} weight="bold" /> Novo Lead</button>
         </div>
       </div>

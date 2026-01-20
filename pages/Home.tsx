@@ -250,17 +250,17 @@ export const HomeModule = () => {
 
   // KPIs Calculados - Memoized
   const kpis = useMemo(() => {
-    // 1. MRR ATIVO (Stock) -> "mrr" field
-    const mrrMetrics = calculateStockMetrics(clients, 'mrr', (c) => c.status !== 'cancelado');
+    // 1. MRR ATIVO (Stock) -> "mrr" field - ONLY active clients
+    const mrrMetrics = calculateStockMetrics(clients, 'mrr', (c) => c.status !== 'cancelado' && c.status !== 'arquivado');
 
-    // 2. CLIENTES ATIVOS (Stock) -> Count
-    const activeClientsMetrics = calculateStockMetrics(clients, undefined, (c) => c.status !== 'cancelado');
+    // 2. CLIENTES ATIVOS (Stock) -> Count - ONLY active clients
+    const activeClientsMetrics = calculateStockMetrics(clients, undefined, (c) => c.status !== 'cancelado' && c.status !== 'arquivado');
 
-    // 3. PIPELINE (Stock) -> Count
-    const pipelineMetrics = calculateStockMetrics(leads); // Assuming all leads are "in pipeline" (open)
+    // 3. PIPELINE (Stock) -> Count - ONLY non-archived leads
+    const pipelineMetrics = calculateStockMetrics(leads.filter(l => !l.archived));
 
-    // 4. NOVOS CLIENTES (Flow) -> Count created this month
-    const newClientsMetrics = calculateFlowMetrics(clients);
+    // 4. NOVOS CLIENTES (Flow) -> Count created this month - ONLY non-archived
+    const newClientsMetrics = calculateFlowMetrics(clients.filter(c => c.status !== 'arquivado'));
 
     return [
       {
