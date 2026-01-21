@@ -54,6 +54,7 @@ const App: React.FC = () => {
                               <Route path="/" element={<HomeModule />} />
                               <Route path="/crm" element={<CRMModule />} />
                               <Route path="/clients" element={<ClientsModule />} />
+                              <Route path="/clients/:clientId" element={<ClientsModule />} />
                               <Route path="/projects" element={<ProjectsModule />} />
                               <Route path="/performance" element={<PerformanceModule />} />
                               <Route path="/media" element={<MediaModule />} />

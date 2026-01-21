@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Client } from '../types';
 import {
   MagnifyingGlass,
@@ -141,11 +142,18 @@ const ClientCard: React.FC<{ client: Client; onClick: () => void; onEdit: (e: Re
 
 export const ClientsModule: React.FC = () => {
   const { clients, tasks, content, campaigns, updateClient, addClient, addCampaign, meetings, addMeeting, loading } = useVanguard();
+  const { clientId } = useParams();
+  const navigate = useNavigate();
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filter, setFilter] = useState<'all' | 'ativo' | 'onboarding' | 'em_risco'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+
+  const selectedClient = useMemo(() => {
+    if (!clientId) return null;
+    return clients.find(c => c.id === clientId) || null;
+  }, [clientId, clients]);
+
   const [editingClient, setEditingClient] = useState<Partial<Client> | null>(null);
   const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -180,7 +188,7 @@ export const ClientsModule: React.FC = () => {
   };
 
   const handleCardClick = (client: Client) => {
-    setSelectedClient(client);
+    navigate(`/clients/${client.id}`);
   };
 
   const handleSaveEdit = async () => {
@@ -235,10 +243,10 @@ export const ClientsModule: React.FC = () => {
     return (
       <ClientProfile
         client={selectedClient}
-        onBack={() => setSelectedClient(null)}
+        onBack={() => navigate('/clients')}
         onUpdateClient={async (updated) => {
           await updateClient(updated);
-          setSelectedClient(updated);
+          // URL remains handle selection, state updates in context
         }}
         tasks={tasks}
         content={content}

@@ -1,5 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Client, Task, Lead, ContentItem, ClientLink, ClientStrategy, Campaign, ChecklistItem, ClientSalesSnapshot, Meeting } from '../types';
 import {
     ArrowLeft, Target, Strategy, CheckCircle, ChartLineUp, Link as LinkIcon,
@@ -116,7 +117,12 @@ interface ClientProfileProps {
 export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, onUpdateClient, tasks, content, campaigns, onAddCampaign, meetings, onAddMeeting }) => {
     const { archiveClient, deleteClient, updateMeeting, deleteMeeting, leads } = useVanguard();
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'strategy' | 'operation' | 'tasks' | 'campaigns' | 'performance' | 'links' | 'meetings'>('overview');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = (searchParams.get('tab') || 'overview') as any;
+
+    const setActiveTab = (tab: string) => {
+        setSearchParams({ tab });
+    };
     const [isEditingStrategy, setIsEditingStrategy] = useState(false);
     const [localStrategy, setLocalStrategy] = useState<ClientStrategy>(client.strategy || {});
     const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);

@@ -209,7 +209,10 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             setClients(mappedClients as Client[]);
             setTasks(mappedTasks as Task[]);
             setLeads(mappedLeads as Lead[]);
-            setCampaigns(campaignsData || []);
+            setCampaigns((campaignsData || []).map(c => ({
+                ...c,
+                clientId: c.client_id
+            })));
             setSops(mappedSops as SOPItem[]);
             setContent(mappedContent as ContentItem[]);
             setMeetings((meetingsData || []).map(m => ({
@@ -622,10 +625,16 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         };
         const { data, error } = await supabase.from('campaigns').insert([payload]).select();
         if (!error && data) {
-            const newCampaign = { ...c, id: data[0].id, created_at: data[0].created_at } as Campaign;
+            const newCampaign = {
+                ...c,
+                id: data[0].id,
+                created_at: data[0].created_at,
+                clientId: data[0].client_id
+            } as Campaign;
             setCampaigns(prev => [newCampaign, ...prev]);
         } else if (error) {
             console.error('[VANGUARD ERROR] addCampaign:', error);
+            throw error; // Rethrow to let the UI handle it
         }
     };
 
