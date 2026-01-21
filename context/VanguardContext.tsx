@@ -61,6 +61,9 @@ interface VanguardContextType {
     updateMeeting: (meeting: Meeting) => Promise<void>;
     deleteMeeting: (id: string) => Promise<void>;
 
+    // Campaign Refresh
+    refreshCampaigns: (clientId: string) => Promise<void>;
+
     // BUG #4 FIX: Pagination support
     loadMoreClients: () => Promise<void>;
     loadMoreTasks: () => Promise<void>;
@@ -133,7 +136,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
                 supabase.from('tasks').select('*').is('archived', false).order('created_at', { ascending: false }).range(0, ITEMS_PER_PAGE),
                 supabase.from('leads').select('*').is('archived', false).order('created_at', { ascending: false }).range(0, ITEMS_PER_PAGE),
                 supabase.from('campaigns').select('*').is('archived', false).order('created_at', { ascending: false }).range(0, ITEMS_PER_PAGE),
-                supabase.from('sops').select('*').is('archived', false).order('position', { ascending: true }).range(0, ITEMS_PER_PAGE),
+                supabase.from('sop_documents').select('*').is('archived', false).order('position', { ascending: true }).range(0, ITEMS_PER_PAGE),
                 supabase.from('content_posts').select('*').is('archived', false).order('created_at', { ascending: false }).range(0, ITEMS_PER_PAGE),
                 supabase.from('meetings').select('*').order('start_time', { ascending: false }).limit(50)
             ]);
@@ -470,7 +473,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         try {
             await supabase.from('leads').update({ archived: true, archived_at: new Date().toISOString() }).eq('id', id);
         } catch (e) {
-            console.warn('[VANGUARD] Lead archiving not yet supported in DB schema');
+            console.error('[VANGUARD] Lead archiving failed:', e);
         }
     };
 
@@ -479,7 +482,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         try {
             await supabase.from('leads').update({ archived: false, archived_at: null }).eq('id', id);
         } catch (e) {
-            console.warn('[VANGUARD] Lead restore not yet supported in DB schema');
+            console.error('[VANGUARD] Lead restore failed:', e);
         }
     };
 
@@ -549,7 +552,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         try {
             await supabase.from('content_posts').update({ archived: true, archived_at: new Date().toISOString() }).eq('id', id);
         } catch (e) {
-            console.warn('[VANGUARD] Content archiving not yet supported in DB schema');
+            console.error('[VANGUARD] Content archiving failed:', e);
         }
     };
 
@@ -558,7 +561,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         try {
             await supabase.from('content_posts').update({ archived: false, archived_at: null }).eq('id', id);
         } catch (e) {
-            console.warn('[VANGUARD] Content restore not yet supported in DB schema');
+            console.error('[VANGUARD] Content restore failed:', e);
         }
     };
 
@@ -598,7 +601,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         try {
             await supabase.from('sop_documents').update({ archived: true, archived_at: new Date().toISOString() }).eq('id', id);
         } catch (e) {
-            console.warn('[VANGUARD] SOP archiving not yet supported in DB schema');
+            console.error('[VANGUARD] SOP archiving failed:', e);
         }
     };
 
@@ -607,7 +610,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         try {
             await supabase.from('sop_documents').update({ archived: false, archived_at: null }).eq('id', id);
         } catch (e) {
-            console.warn('[VANGUARD] SOP restore not yet supported in DB schema');
+            console.error('[VANGUARD] SOP restore failed:', e);
         }
     };
 
@@ -621,6 +624,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             roas: c.roas || 0,
             ctr: c.ctr || 0,
             cpa: c.cpa || 0,
+            archived: false,
             user_id: user?.id
         };
         const { data, error } = await supabase.from('campaigns').insert([payload]).select();
@@ -643,7 +647,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         try {
             await supabase.from('campaigns').update({ archived: true, archived_at: new Date().toISOString() }).eq('id', id);
         } catch (e) {
-            console.warn('[VANGUARD] Campaign archiving not yet supported in DB schema');
+            console.error('[VANGUARD] Campaign archiving failed:', e);
         }
     };
 
@@ -652,7 +656,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         try {
             await supabase.from('campaigns').update({ archived: false, archived_at: null }).eq('id', id);
         } catch (e) {
-            console.warn('[VANGUARD] Campaign restore not yet supported in DB schema');
+            console.error('[VANGUARD] Campaign restore failed:', e);
         }
     };
 
@@ -784,11 +788,32 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
 
     const loadMoreSOPs = async () => {
         const newOffset = sopsOffset + ITEMS_PER_PAGE;
-        const { data } = await supabase.from('sops').select('*').is('archived', false).order('position', { ascending: true }).range(newOffset, newOffset + ITEMS_PER_PAGE);
+        const { data } = await supabase.from('sop_documents').select('*').is('archived', false).order('position', { ascending: true }).range(newOffset, newOffset + ITEMS_PER_PAGE);
         if (data) {
             setSops(prev => [...prev, ...data as SOPItem[]]);
             setSopsOffset(newOffset);
             setHasMoreSOPs(data.length > ITEMS_PER_PAGE);
+        }
+    };
+
+    const refreshCampaigns = async (clientId: string) => {
+        const { data, error } = await supabase
+            .from('campaigns')
+            .select('*')
+            .eq('client_id', clientId)
+            .is('archived', false)
+            .order('created_at', { ascending: false });
+
+        if (!error && data) {
+            const mappedCampaigns = data.map(c => ({
+                ...c,
+                clientId: c.client_id
+            })) as Campaign[];
+
+            setCampaigns(prev => {
+                const otherCampaigns = prev.filter(c => c.clientId !== clientId);
+                return [...otherCampaigns, ...mappedCampaigns];
+            });
         }
     };
 
@@ -808,7 +833,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
         setSops(updatedSops);
 
         // Persist to database
-        const { error } = await supabase.from('sops').update({ position: newPosition }).eq('id', sopId);
+        const { error } = await supabase.from('sop_documents').update({ position: newPosition }).eq('id', sopId);
         if (error) {
             console.error('[VanguardContext] reorderSOP failed:', error);
             await fetchData(); // Rollback on error
@@ -824,7 +849,7 @@ export const VanguardProvider = ({ children }: { children: ReactNode }) => {
             addLead, updateLead, deleteLead, archiveLead, restoreLead,
             addContent, updateContent, deleteContent, archiveContent, restoreContent,
             addSOP, updateSOP, deleteSOP, archiveSOP, restoreSOP, reorderSOP,
-            addCampaign, archiveCampaign, restoreCampaign,
+            addCampaign, archiveCampaign, restoreCampaign, refreshCampaigns,
             addMeeting, updateMeeting, deleteMeeting,
             loadMoreClients, loadMoreTasks, loadMoreLeads, loadMoreContent, loadMoreSOPs,
             hasMoreClients, hasMoreTasks, hasMoreLeads, hasMoreContent, hasMoreSOPs

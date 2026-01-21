@@ -143,6 +143,15 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
     const [checklist, setChecklist] = useState<ChecklistItem[]>(client.onboardingChecklist || []);
     const [newItemText, setNewItemText] = useState('');
 
+    const { refreshCampaigns } = useVanguard();
+
+    // Trigger Campaign Refresh when tab is active
+    useEffect(() => {
+        if (activeTab === 'campaigns') {
+            refreshCampaigns(client.id);
+        }
+    }, [activeTab, client.id]);
+
     // Metrics Edit State
     const [isEditingMetrics, setIsEditingMetrics] = useState(false);
     const [metricsData, setMetricsData] = useState({
