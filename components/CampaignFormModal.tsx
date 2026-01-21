@@ -6,14 +6,16 @@ import {
     TrendUp,
     Target,
     Money,
-    ChartBar
+    ChartBar,
+    CircleNotch,
+    Warning
 } from '@phosphor-icons/react';
 import { Campaign } from '../types';
 
 interface CampaignFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (campaign: Omit<Campaign, 'id' | 'user_id' | 'created_at'>) => void;
+    onSave: (campaign: Omit<Campaign, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
     initialData?: Campaign;
     clientId: string;
 }
@@ -35,6 +37,8 @@ export const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
         cpa: 0,
         clientId: clientId
     });
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (initialData) {
@@ -55,20 +59,30 @@ export const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
 
     if (!isOpen) return null;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formData.name) return;
 
-        onSave({
-            name: formData.name,
-            platform: formData.platform || 'Meta Ads',
-            status: formData.status || 'Ativa',
-            spend: Number(formData.spend) || 0,
-            roas: Number(formData.roas) || 0,
-            ctr: Number(formData.ctr) || 0,
-            cpa: Number(formData.cpa) || 0,
-            clientId: clientId
-        } as any);
-        onClose();
+        setIsSaving(true);
+        setError(null);
+
+        try {
+            await onSave({
+                name: formData.name,
+                platform: formData.platform || 'Meta Ads',
+                status: formData.status || 'Ativa',
+                spend: Number(formData.spend) || 0,
+                roas: Number(formData.roas) || 0,
+                ctr: Number(formData.ctr) || 0,
+                cpa: Number(formData.cpa) || 0,
+                clientId: clientId
+            } as any);
+            onClose();
+        } catch (err) {
+            console.error('[CampaignForm] Save error:', err);
+            setError('Não foi possível salvar a campanha. Tente novamente.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -97,6 +111,12 @@ export const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-8">
+                    {error && (
+                        <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl flex items-center gap-3 animate-shake">
+                            <Warning weight="fill" />
+                            <p className="text-sm font-medium">{error}</p>
+                        </div>
+                    )}
 
                     {/* Basic Info */}
                     <div className="grid md:grid-cols-2 gap-6">
@@ -222,10 +242,20 @@ export const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
                     </button>
                     <button
                         onClick={handleSave}
-                        className="px-8 py-2.5 bg-black text-white text-sm font-bold rounded-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                        disabled={isSaving}
+                        className="px-8 py-2.5 bg-black text-white text-sm font-bold rounded-lg shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50 disabled:hover:translate-y-0 disabled:cursor-not-allowed"
                     >
-                        <Megaphone weight="fill" />
-                        {initialData ? 'Salvar Alterações' : 'Criar Campanha'}
+                        {isSaving ? (
+                            <>
+                                <CircleNotch className="animate-spin" />
+                                Salvando...
+                            </>
+                        ) : (
+                            <>
+                                <Megaphone weight="fill" />
+                                {initialData ? 'Salvar Alterações' : 'Criar Campanha'}
+                            </>
+                        )}
                     </button>
                 </div>
 

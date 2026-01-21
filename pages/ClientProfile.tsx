@@ -524,7 +524,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
 
                 {/* 2. ESTRATÉGIA */}
                 {activeTab === 'strategy' && (
-                    <div className="space-y-8 max-w-5xl mx-auto">
+                    <div className="space-y-8">
                         <div className="flex justify-between items-center">
                             <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Planejamento Estratégico</h3>
                             {isEditingStrategy ? (
@@ -548,7 +548,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
 
                 {/* 3. OPERAÇÃO */}
                 {activeTab === 'operation' && (
-                    <div className="max-w-4xl mx-auto">
+                    <div className="">
                         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                             <div className="p-8 border-b border-gray-200 bg-white flex justify-between items-center">
                                 <div>
@@ -710,7 +710,7 @@ export const ClientProfile: React.FC<ClientProfileProps> = ({ client, onBack, on
 
                 {/* 7. LINKS */}
                 {activeTab === 'links' && (
-                    <div className="max-w-6xl mx-auto">
+                    <div className="">
                         <div className="flex justify-between items-center mb-8">
                             <div>
                                 <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Links & Acessos</h3>
@@ -780,7 +780,7 @@ const MeetingsTab: React.FC<{ client: Client, meetings: Meeting[], onAddMeeting:
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="space-y-8">
             <div className="flex justify-between items-center">
                 <div>
                     <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Agenda & Reuniões</h3>
